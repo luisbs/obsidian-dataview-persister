@@ -30,6 +30,7 @@
         "release": "changeset"
     },
     "dependencies": {
+        "@luis.bs/obsidian-fnc": "^1.4.3",
         "obsidian-dataview": "^0.5.67"
     },
     "devDependencies": {
