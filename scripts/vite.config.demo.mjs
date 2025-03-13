@@ -8,7 +8,7 @@ export default defineConfig({
     resolve: { alias: { '@': resolve(__dirname, '../src') } },
     build: {
         emptyOutDir: false,
-        outDir: 'demo/.obsidian/plugins/dataview-persister',
+        outDir: 'test-vault/.obsidian/plugins/dataview-persister',
         target: 'es2022',
         sourcemap: 'inline',
         rollupOptions: rollupOptions(),
