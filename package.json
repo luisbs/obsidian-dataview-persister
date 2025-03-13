@@ -1,0 +1,71 @@
+{
+    "private": true,
+    "license": "GPL-3.0-or-later",
+    "version": "0.0.1",
+    "name": "@luis.bs/obsidian-dataview-persister",
+    "description": "Persist a DQL result into the note",
+    "keywords": [
+        "obsidian",
+        "dataview",
+        "persist",
+        "write"
+    ],
+    "author": {
+        "name": "Luis Brayan",
+        "url": "https://github.com/luisbs"
+    },
+    "repository": {
+        "url": "https://github.com/luisbs/obsidian-dataview-persisted"
+    },
+    "publishConfig": {
+        "provenance": true,
+        "access": "public"
+    },
+    "scripts": {
+        "prepare": "simple-git-hooks",
+        "lint:eslint": "eslint",
+        "lint:prettier": "prettier --check src",
+        "lint": "pnpm lint:eslint && pnpm lint:prettier",
+        "watch": "vite build --watch -c ./scripts/vite.config.demo.mjs",
+        "release": "changeset"
+    },
+    "dependencies": {
+        "obsidian-dataview": "^0.5.67"
+    },
+    "devDependencies": {
+        "@changesets/cli": "^2.28.1",
+        "@commitlint/cli": "^19.8.0",
+        "@commitlint/config-conventional": "^19.8.0",
+        "@eslint/js": "^9.22.0",
+        "@types/node": "^22.13.10",
+        "clean-pkg-json": "^1.2.1",
+        "eslint": "^9.22.0",
+        "eslint-config-prettier": "^10.1.1",
+        "globals": "^15.15.0",
+        "lint-staged": "^15.5.0",
+        "obsidian": "^1.8.7",
+        "prettier": "^3.5.3",
+        "simple-git-hooks": "^2.11.1",
+        "tslib": "^2.8.1",
+        "typescript": "^5.8.2",
+        "typescript-eslint": "^8.26.1",
+        "vite": "^6.2.1",
+        "vite-plugin-banner": "^0.8.0",
+        "vite-plugin-static-copy": "^2.3.0"
+    },
+    "simple-git-hooks": {
+        "pre-commit": "npx lint-staged",
+        "commit-msg": "npx commitlint -e -V"
+    },
+    "commitlint": {
+        "extends": [
+            "@commitlint/config-conventional"
+        ]
+    },
+    "lint-staged": {
+        "src/**/*.ts": [
+            "eslint",
+            "prettier"
+        ]
+    }
+}

@@ -1,0 +1,11 @@
+{
+    "id": "dataview-persister",
+    "name": "Dataview Persister",
+    "version": "0.0.1",
+    "minAppVersion": "1.8.4",
+    "description": "Persist a DQL result into the note",
+    "author": "luisbs",
+    "authorUrl": "https://github.com/luisbs",
+    "fundingUrl": "https://www.buymeacoffee.com/luisbs",
+    "isDesktopOnly": false
+}
