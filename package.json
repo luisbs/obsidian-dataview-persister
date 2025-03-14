@@ -26,6 +26,7 @@
         "lint:eslint": "eslint",
         "lint:prettier": "prettier --check src",
         "lint": "pnpm lint:eslint && pnpm lint:prettier",
+        "test": "vitest -c ./scripts/vite.config.dist.mjs",
         "watch": "vite build --watch -c ./scripts/vite.config.demo.mjs",
         "release": "changeset"
     },
@@ -52,7 +53,8 @@
         "typescript-eslint": "^8.26.1",
         "vite": "^6.2.1",
         "vite-plugin-banner": "^0.8.0",
-        "vite-plugin-static-copy": "^2.3.0"
+        "vite-plugin-static-copy": "^2.3.0",
+        "vitest": "^3.0.8"
     },
     "simple-git-hooks": {
         "pre-commit": "npx lint-staged",
