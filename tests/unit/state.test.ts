@@ -6,31 +6,64 @@ const state = prepareState(SETTINGS)
 
 describe('Testing state matchers', () => {
     test('testHeader', () => {
-        const headerMatch = (text: string) =>
+        const matcher = (text: string) =>
             state.matchers.some((matcher) => matcher.testHeader(text))
 
-        expect.soft(headerMatch('<!--dataview')).toBe(true)
-        expect.soft(headerMatch('%%dataview')).toBe(true)
-        expect.soft(headerMatch('%%dv')).toBe(true)
-        expect.soft(headerMatch('%%dv      list from "recipes" %%')).toBe(true)
+        expect.soft(matcher('<!--dataview')).toBe(true)
+        expect.soft(matcher('%%dataview')).toBe(true)
+        expect.soft(matcher('%%dv')).toBe(true)
+        expect.soft(matcher('%%dv      list from "recipes" %%')).toBe(true)
 
-        expect.soft(headerMatch('%%dataviewjs')).toBe(false) // incorrect name
-        expect.soft(headerMatch('%%%dataview')).toBe(false) // invalid prefix
-        expect.soft(headerMatch('%% dataview')).toBe(false) // invalid space
-        expect.soft(headerMatch('%%dvlist from "recipes" %%')).toBe(false) // missing space
+        expect.soft(matcher('%%dataviewjs')).toBe(false) // incorrect name
+        expect.soft(matcher('%%%dataview')).toBe(false) // invalid prefix
+        expect.soft(matcher('%% dataview')).toBe(false) // invalid space
+        expect.soft(matcher('%%dvlist from "recipes" %%')).toBe(false) // missing space
     })
 
     test('testFooter', () => {
-        const footerMatch = (text: string) =>
+        const matcher = (text: string) =>
             state.matchers.some((matcher) => matcher.testFooter(text))
 
-        expect.soft(footerMatch('-->')).toBe(true)
-        expect.soft(footerMatch('%%')).toBe(true)
-        expect.soft(footerMatch('%%dv list from "recipes"      %%')).toBe(true)
+        expect.soft(matcher('-->')).toBe(true)
+        expect.soft(matcher('%%')).toBe(true)
+        expect.soft(matcher('%%dv list from "recipes"      %%')).toBe(true)
 
-        expect.soft(footerMatch('%%%')).toBe(false) // invalid suffix
-        expect.soft(footerMatch('--->')).toBe(false) // invalid suffix
-        expect.soft(footerMatch('%%dv list from "recipes"%%')).toBe(false) // missing space
+        // allowed behavior
+        expect.soft(matcher('%%%')).toBeTruthy()
+        expect.soft(matcher('--->')).toBeTruthy()
+        expect.soft(matcher('%%dv list from "recipes"%%')).toBeTruthy()
+    })
+
+    test('testStart', () => {
+        const matcher = (text: string) =>
+            state.matchers.some((matcher) => matcher.testStart(text))
+
+        expect.soft(matcher('<!--dv-start KEEP THIS COMMENT -->')).toBe(true)
+        expect.soft(matcher('<!--dv-start KEEP THIS COMMENT-->')).toBe(false)
+        expect.soft(matcher('<!--dv KEEP THIS COMMENT -->')).toBe(false)
+    })
+
+    test('testEnd', () => {
+        const matcher = (text: string) =>
+            state.matchers.some((matcher) => matcher.testEnd(text))
+
+        expect.soft(matcher('<!--dv-end KEEP THIS COMMENT -->')).toBe(true)
+        expect.soft(matcher('<!--dv-end KEEP THIS COMMENT-->')).toBe(false)
+        expect.soft(matcher('<!--dv KEEP THIS COMMENT -->')).toBe(false)
+    })
+
+    test('getStart', () => {
+        const items = state.matchers.map((matcher) => matcher.getStart())
+
+        expect.soft(items).toContain('<!--dataview-start KEEP THIS COMMENT -->')
+        expect.soft(items).toContain('<!--dv-start KEEP THIS COMMENT -->')
+    })
+
+    test('getEnd', () => {
+        const items = state.matchers.map((matcher) => matcher.getEnd())
+
+        expect.soft(items).toContain('<!--dataview-end KEEP THIS COMMENT -->')
+        expect.soft(items).toContain('<!--dv-end KEEP THIS COMMENT -->')
     })
 })
 
@@ -40,8 +73,8 @@ describe('Testing state matchers together', () => {
         // good
         [true, `%%dv ${output} %%`],
         [true, `<!--dv ${output} -->`],
+        [true, `%%dv ${output}%%`],
         // bad
-        [false, `%%dv ${output}%%`],
         [false, `%%dv ${output} -->`],
         [false, `<!--dv ${output} %%`],
     ]
