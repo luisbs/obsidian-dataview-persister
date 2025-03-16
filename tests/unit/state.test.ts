@@ -58,14 +58,14 @@ describe('Testing state matchers', () => {
         assert(fenceResult !== undefined, 'matcher should not be undefined')
 
         const start = '<!--dv-start KEEP THIS COMMENT -->\n'
-        const end = '\n<!--dv-end KEEP THIS COMMENT -->\n'
+        const end = '<!--dv-end KEEP THIS COMMENT -->\n'
 
-        const basic = '- first line\n- second line'
-        expect.soft(fenceResult(basic)).toBe(`${basic}\n`)
-        expect.soft(fenceResult(basic, false)).toBe(`${basic}\n`)
+        const basic = '- first line\n- second line\n'
+        expect.soft(fenceResult(basic)).toBe(basic)
+        expect.soft(fenceResult(basic, false)).toBe(basic)
         expect.soft(fenceResult(basic, true)).toBe(`${start}${basic}${end}`)
 
-        const spaced = '## Section\n\nParagraph of content\n\n> Footer'
+        const spaced = '## Section\n\nParagraph of content\n\n> Footer\n'
         expect.soft(fenceResult(spaced)).toBe(`${start}${spaced}${end}`)
         expect.soft(fenceResult(spaced, false)).toBe(`${start}${spaced}${end}`)
         expect.soft(fenceResult(spaced, true)).toBe(`${start}${spaced}${end}`)

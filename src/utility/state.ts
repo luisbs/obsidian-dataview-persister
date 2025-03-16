@@ -38,9 +38,15 @@ export function prepareState(
                 testStart: (t) => startFence === t,
                 testEnd: (t) => endFence === t,
                 fenceResult: (content, force = false) => {
-                    return force || content.includes('\n\n')
+                    const shouldFence = force || content.includes('\n\n')
+                    if (content.endsWith('\n')) {
+                        return shouldFence
+                            ? `${startFence}\n${content}${endFence}\n`
+                            : content
+                    }
+                    return shouldFence
                         ? `${startFence}\n${content}\n${endFence}\n`
-                        : `${content}\n`
+                        : content
                 },
             })
         }
