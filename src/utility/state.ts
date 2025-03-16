@@ -29,6 +29,7 @@ export function prepareState(
             const headerMatcher = RegExp(opener.replace('{id}', id))
             const startFence = `<!--${id}-start KEEP THIS COMMENT -->`
             const endFence = `<!--${id}-end KEEP THIS COMMENT -->`
+
             matchers.push({
                 testHeader: (t) => headerMatcher.test(t),
                 testFooter: (t) => footerMatcher.test(t),
@@ -39,14 +40,16 @@ export function prepareState(
                 testEnd: (t) => endFence === t,
                 fenceResult: (content, force = false) => {
                     const shouldFence = force || content.includes('\n\n')
+                    // the content is aimed to follow the commentEnd
+                    // so a starting linebreak should be added
                     if (content.endsWith('\n')) {
                         return shouldFence
-                            ? `${startFence}\n${content}${endFence}\n`
-                            : content
+                            ? `\n${startFence}\n${content}${endFence}\n`
+                            : `\n${content}`
                     }
                     return shouldFence
-                        ? `${startFence}\n${content}\n${endFence}\n`
-                        : content
+                        ? `\n${startFence}\n${content}\n${endFence}\n`
+                        : `\n${content}`
                 },
             })
         }
