@@ -52,6 +52,34 @@ export function findAllQueries(
     return queries
 }
 
+/** Identify the comment query the `testLine` is part of */
+export function identifyQuery(
+    state: DataviewPersisterState,
+    testLine: number,
+    lastLine: number,
+    getLine: LineProvider,
+): CommentQuery | undefined {
+    // testLine is out of document
+    if (testLine > lastLine) return
+
+    // search commentStart
+    for (let lineIndex = testLine; lineIndex > -1; lineIndex--) {
+        const line = getLine(lineIndex)
+        for (const matcher of state.matchers) {
+            if (!matcher.testHeader(line)) continue
+            const query = findQuery(matcher, lineIndex, lastLine, (n) => {
+                // avoid re-requesting the queryHeader multiple times
+                return n === lineIndex ? line : getLine(n)
+            })
+
+            // fails if header was found but comment is incomplete
+            // or if testline is not inside [queryStart, queryEnd]
+            if (query && query.queryEnd >= testLine) return query
+        }
+    }
+    return
+}
+
 /** Identity a comment query starting at `queryStart` */
 export function findQuery(
     matcher: CommentMatcher,
@@ -135,46 +163,4 @@ export function findQueryEnd(
     }
 
     return -1
-}
-
-//
-//
-
-export function extractQuery(
-    state: DataviewPersisterState,
-    testLine: number,
-    lastLine: number,
-    getLine: LineProvider,
-): CommentQuery | undefined {
-    // testLine is out of document
-    if (testLine > lastLine) return
-
-    // search commentStart
-    const header = identifyCommentHeader(state, testLine, getLine)
-    // commentStart could not be located
-    if (!header) return
-
-    const [startLine, headerText, matcher] = header
-    return findQuery(matcher, startLine, lastLine, (n) => {
-        // avoid re-requesting the queryHeader multiple times
-        return n === startLine ? headerText : getLine(n)
-    })
-}
-
-// TODO: join this function into extractQuery
-// TODO: retest extractQuery
-function identifyCommentHeader(
-    state: DataviewPersisterState,
-    testLine: number,
-    getLine: LineProvider,
-): undefined | [number, string, CommentMatcher] {
-    for (let lineIndex = testLine; lineIndex > -1; lineIndex--) {
-        const line = getLine(lineIndex)
-        for (const matcher of state.matchers) {
-            if (matcher.testHeader(line)) {
-                return [lineIndex, line, matcher]
-            }
-        }
-    }
-    return
 }

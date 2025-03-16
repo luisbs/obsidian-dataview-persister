@@ -1,18 +1,8 @@
 import { CommentQuery } from '@/utility/queries'
 
-// prettier-ignore
-export const GOOD_QUERIES: Array<[string, number[], CommentQuery]> = [
-    [ 'Line Query Example', [ 4,  4,  6], { query: 'list from "books"', queryStart: 4, queryEnd: 4, resultEnd: 6 }],
-    ['Block Query Example', [ 9, 11, 13], { query: 'list from "books"', queryStart: 9, queryEnd: 11, resultEnd: 13 }],
-    [      'Table Example', [21, 21, 26], { query: 'list from "books"', queryStart: 21, queryEnd: 21, resultEnd: 26 }],
-    [       'List Example', [29, 29, 34], { query: 'list from "books"', queryStart: 29, queryEnd: 29, resultEnd: 34 }],
-    [     'Spaced Example', [40, 40, 52], { query: 'list from "books"', queryStart: 40, queryEnd: 40, resultEnd: 52 }],
-]
+type QuerySpec = [string[], string, CommentQuery]
+type NoQuerySpec = [string[], string, number[]]
 
-//
-//
-//
-//
 // SPACED
 // FOR
 // EASIER
@@ -72,21 +62,21 @@ list from "books"
 <!--dv-end KEEP THIS COMMENT -->
 `.split('\n')
 
-//
-//
-//
-//
+// prettier-ignore
+export const GOOD_QUERIES: QuerySpec[] = [
+    [GOOD_EXAMPLE,    'Line Query', { query: 'list from "books"', queryStart: 4, queryEnd: 4, resultEnd: 6 }],
+    [GOOD_EXAMPLE,   'Block Query', { query: 'list from "books"', queryStart: 9, queryEnd: 11, resultEnd: 13 }],
+    [GOOD_EXAMPLE,  'Table Result', { query: 'list from "books"', queryStart: 21, queryEnd: 21, resultEnd: 26 }],
+    [GOOD_EXAMPLE,   'List Result', { query: 'list from "books"', queryStart: 29, queryEnd: 29, resultEnd: 34 }],
+    [GOOD_EXAMPLE, 'Spaced Result', { query: 'list from "books"', queryStart: 40, queryEnd: 40, resultEnd: 52 }],
+]
+
 //
 //
 // SPACED
 // FOR
 // EASIER
 // NUMBERS
-// prettier-ignore
-export const NO_END_QUERIES: Array<[string, number[], CommentQuery]> = [
-    ['No end Example', [1, 1, -1], { query: 'list from "recipes"', queryStart: 1, queryEnd: 1, resultEnd: -1 }],
-]
-
 export const NO_END_EXAMPLE = `
 %%dv list from "recipes" %%
 
@@ -94,19 +84,9 @@ export const NO_END_EXAMPLE = `
 
 - Hot Water
 - Water Soup
-
 `.split('\n')
 
-// SPACED
-// FOR
-// EASIER
-// NUMBERS
-// prettier-ignore
-export const OVERLAP_QUERIES: Array<[string, number[], CommentQuery]> = [
-    [   'Overlap Example', [ 1,  1, -1], { query: 'list from "recipes"', queryStart: 1, queryEnd: 3, resultEnd: -1 }],
-    ['No Overlap Example', [12, 12, 19], { query: 'list from "books"', queryStart: 12, queryEnd: 12, resultEnd: 19 }],
-]
-
+//
 export const OVERLAP_EXAMPLE = `
 %%dv
 list from "recipes"
@@ -129,6 +109,24 @@ list from "recipes"
 <!--dv-end KEEP THIS COMMENT -->
 `.split('\n')
 
+// prettier-ignore
+export const MIXED_QUERIES: QuerySpec[] = [
+    [NO_END_EXAMPLE, 'Missing End', { query: 'list from "recipes"', queryStart: 1, queryEnd: 1, resultEnd: -1 }],
+    [OVERLAP_EXAMPLE,    'Overlap', { query: 'list from "recipes"', queryStart: 1, queryEnd: 3, resultEnd: -1 }],
+    [OVERLAP_EXAMPLE, 'No Overlap', { query: 'list from "books"', queryStart: 12, queryEnd: 12, resultEnd: 19 }],
+]
+
+/** All examples that contain a valid query */
+export const ALL_QUERIES = [...GOOD_QUERIES, ...MIXED_QUERIES]
+
+//
+//
+//
+// SPACED
+// FOR
+// EASIER
+// NUMBERS
+// prettier-ignore
 export const NO_QUERY_EXAMPLE = `
 # This query doesn't include any valid query
 
@@ -138,10 +136,7 @@ list from "recipes"
 %%
 `.split('\n')
 
-//
-type QuerySpec = Array<[string[], string, number[], CommentQuery]>
-export const ALL_QUERIES: QuerySpec = [
-    ...(GOOD_QUERIES.map((v) => [GOOD_EXAMPLE, ...v]) as QuerySpec),
-    ...(NO_END_QUERIES.map((v) => [NO_END_EXAMPLE, ...v]) as QuerySpec),
-    ...(OVERLAP_QUERIES.map((v) => [OVERLAP_EXAMPLE, ...v]) as QuerySpec),
+export const NO_QUERIES: NoQuerySpec[] = [
+    [NO_QUERY_EXAMPLE, 'Bad Naming Example', [4, 6, -1]],
+    [NO_QUERY_EXAMPLE, 'Bad Spacing Example', [3, 3, -1]],
 ]
