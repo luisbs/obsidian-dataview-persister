@@ -1,4 +1,11 @@
-import { App, Notice, Plugin, PluginManifest } from 'obsidian'
+import {
+    App,
+    type Editor,
+    type EditorPosition,
+    Notice,
+    Plugin,
+    type PluginManifest,
+} from 'obsidian'
 import { getAPI, isPluginEnabled } from 'obsidian-dataview'
 import { Logger, LogLevel } from '@luis.bs/obsidian-fnc'
 import { DEFAULT_SETTINGS, type DataviewPersisterSettings } from '@/settings'
@@ -60,32 +67,36 @@ export default class DataviewPersisterPlugin extends Plugin {
             id: 'persist-cursor',
             name: 'Persist Dataview query under the cursor',
             editorCheckCallback: (checking, editor, view) => {
-                // identify query on comment on cursor
-                const { line } = editor.getCursor()
-                const query = identifyQuery(
-                    this.#state,
-                    line,
-                    editor.lastLine(),
-                    (n) => editor.getLine(n),
-                )
+                const lastLine = editor.lastLine()
+                const getLine = (n: number) => editor.getLine(n)
+
+                // identify query under cursor
+                const { line: l } = editor.getCursor()
+                const query = identifyQuery(this.#state, l, lastLine, getLine)
 
                 // cursor is not over a query comment
                 if (!query) return false
                 if (checking) return true
 
+                // persist found query
                 const group = this.#log.group(`Command persist-cursor`)
-                this.#persistQueryResult(query, group)
-
-                // prettier-ignore
-                group.flush(`Persisted '${view.file?.basename}:${query.queryStart + 1}'`)
-                new Notice('Persisted DQL under cursor')
+                void this.#persist([query], editor, group).then((persisted) => {
+                    // prettier-ignore
+                    if (persisted) {
+                        group.flush(`Persisted Dataview query '${view.file?.basename}:${query.queryStart + 1}'`)
+                        new Notice('Persisted Dataview query under cursor')
+                    } else {
+                        group.flush(`Problems persisting the Dataview query '${view.file?.basename}:${query.queryStart + 1}'`)
+                        new Notice('Problems persisting the Dataview query under cursor')
+                    }
+                })
                 return true
             },
         })
 
         this.addCommand({
-            id: 'persist-file',
-            name: 'Persist all Dataview queries on current file',
+            id: 'persist-all',
+            name: 'Persist all Dataview queries on current editor',
             editorCheckCallback: (checking, editor, view) => {
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
@@ -98,36 +109,87 @@ export default class DataviewPersisterPlugin extends Plugin {
                 if (queries.length < 1) return false
 
                 // persist found queries
-                const group = this.#log.group(`Command persist-file`)
-                for (const query of queries) {
-                    this.#persistQueryResult(query, group)
-                }
-
-                group.flush(`Persisted all Queries '${view.file?.basename}'`)
-                new Notice('Persisted all DQL on editor')
+                // persisting on reverse avoids content shifting
+                // and allows to use the previously found lineIndexes
+                const group = this.#log.group(`persist-file-command`)
+                void this.#persist(queries.reverse(), editor, group).then(
+                    (persisted) => {
+                        // prettier-ignore
+                        if (persisted === queries.length) {
+                        group.flush(`Persisted all Dataview queries on '${view.file?.basename}'`)
+                        new Notice('Persisted all Dataview queries on editor')
+                    } else if (persisted > 0) {
+                        group.flush(`Problems persisting some Dataview queries on '${view.file?.basename}'`)
+                        new Notice('Problems persisting some Dataview queries on editor')
+                    } else {
+                        group.flush(`Problems persisting all Dataview queries on '${view.file?.basename}'`)
+                        new Notice('Problems persisting all Dataview queries on editor')
+                    }
+                    },
+                )
                 return true
             },
         })
     }
 
-    #persistQueryResult(q: CommentQuery, log: Logger): boolean {
-        if (!isPluginEnabled(this.app)) return false
-        const api = getAPI(this.app)
-        if (!api) return false
+    /** @returns {number} the quantity of queries that were persisted */
+    async #persist(
+        queries: CommentQuery[],
+        editor: Editor,
+        log: Logger,
+    ): Promise<number> {
+        if (!isPluginEnabled(this.app)) return 0
+        const dv = getAPI(this.app)
+        if (!dv) return 0
 
-        log.info('Executing query')
-        // TODO
-        void api.query(q.query)
+        const lastLine = editor.lastLine()
 
-        // [ ] 1. Execute query against Dataview
-        // [ ] 2. Transform query result into Markdown
-        // [ ] 3. Persist Markdown into Note under the comment
-        // [ ] 4. Remove previously persisted result in Note
-        // [x] extra 1. Add command to persist all in-file queries
-        // [ ] extra 2. Execute command on file-open event
-        // [-] extra 3. Remove MarkdownPostProcessor
+        let persisted = 0
+        log.debug('Persisting queries', queries)
+        for (const query of queries) {
+            const [start, end] = this.#prepareReplacePositions(query, lastLine)
 
-        log.debug('Persisted', q.query)
-        return true
+            log.debug(`Executing query <${query.query}>`)
+            const result = await dv.queryMarkdown(query.query)
+            const replaced = result.successful
+                ? query.matcher.fenceResult(result.value)
+                : query.matcher.fenceResult(result.error, true)
+
+            log.info(`Persisting result of <${query.query}>`)
+            editor.replaceRange(replaced, start, end)
+
+            // [x] 1. Execute query against Dataview
+            // [x] 2. Transform query result into Markdown
+            // [x] 3. Persist Markdown into Note under the comment
+            // [x] 4. Remove previously persisted result in Note
+            // [x] extra 1. Add command to persist all in-file queries
+            // [ ] extra 2. Execute command on file-open event
+            // [-] extra 3. Remove MarkdownPostProcessor
+            persisted++
+        }
+
+        return persisted
+    }
+
+    #prepareReplacePositions(
+        { queryEnd, resultEnd }: CommentQuery, //
+        lastLine: number,
+    ): [EditorPosition, EditorPosition] {
+        if (queryEnd === lastLine) {
+            return [
+                { line: queryEnd, ch: Infinity },
+                { line: queryEnd, ch: Infinity },
+            ]
+        }
+        if (resultEnd < 0) {
+            return [
+                { line: queryEnd, ch: Infinity },
+                { line: queryEnd + 1, ch: 0 },
+            ]
+        }
+        return [
+            { line: queryEnd, ch: Infinity },
+            { line: resultEnd + 1, ch: 0 },
+        ]
     }
 }
