@@ -4,7 +4,8 @@
     "compilerOptions": {
         "baseUrl": ".",
         "paths": {
-            "@/*": ["./src/*"]
+            "@/*": ["./src/*"],
+            "*": ["./node_modules/obsidian-dataview/lib/*"]
         },
         "declaration": true,
         "declarationMap": false,

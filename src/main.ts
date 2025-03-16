@@ -1,4 +1,5 @@
 import { App, Notice, Plugin, PluginManifest } from 'obsidian'
+import { getAPI, isPluginEnabled } from 'obsidian-dataview'
 import { Logger, LogLevel } from '@luis.bs/obsidian-fnc'
 import { DEFAULT_SETTINGS, type DataviewPersisterSettings } from '@/settings'
 import { prepareState, type DataviewPersisterState } from '@/utility/state'
@@ -109,7 +110,15 @@ export default class DataviewPersisterPlugin extends Plugin {
         })
     }
 
-    #persistQueryResult(query: CommentQuery, log: Logger): void {
+    #persistQueryResult(q: CommentQuery, log: Logger): boolean {
+        if (!isPluginEnabled(this.app)) return false
+        const api = getAPI(this.app)
+        if (!api) return false
+
+        log.info('Executing query')
+        // TODO
+        void api.query(q.query)
+
         // [ ] 1. Execute query against Dataview
         // [ ] 2. Transform query result into Markdown
         // [ ] 3. Persist Markdown into Note under the comment
@@ -118,7 +127,7 @@ export default class DataviewPersisterPlugin extends Plugin {
         // [ ] extra 2. Execute command on file-open event
         // [-] extra 3. Remove MarkdownPostProcessor
 
-        log.debug('Persisting', query)
-        // log.info('Executed query')
+        log.debug('Persisted', q.query)
+        return true
     }
 }
