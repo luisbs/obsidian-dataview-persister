@@ -12,8 +12,7 @@ export interface CommentMatcher {
 
     testStart(text: string): boolean
     testEnd(text: string): boolean
-    getStart(): string
-    getEnd(): string
+    fenceResult(content: string, force?: boolean): string
 }
 
 const affixes = [
@@ -38,8 +37,11 @@ export function prepareState(
 
                 testStart: (t) => startFence === t,
                 testEnd: (t) => endFence === t,
-                getStart: () => startFence,
-                getEnd: () => endFence,
+                fenceResult: (content, force = false) => {
+                    return force || content.includes('\n\n')
+                        ? `${startFence}\n${content}\n${endFence}\n`
+                        : `${content}\n`
+                },
             })
         }
     }

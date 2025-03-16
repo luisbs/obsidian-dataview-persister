@@ -1,76 +1,33 @@
-import { CommentQuery } from '@/utility/queries'
+import type { CommentQuery } from '@/utility/queries'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
-type QuerySpec = [string[], string, CommentQuery]
+type QuerySpec = [string[], string, Omit<CommentQuery, 'matcher'>]
 type NoQuerySpec = [string[], string, number[]]
 
-// SPACED
-// FOR
-// EASIER
-// NUMBERS
-export const GOOD_EXAMPLE = `
-# Simple Examples
-
-## Line Query Example
-%%dv list from "books" %%
-- The hobbit
-- Lord of the rings
-
-## Block Query Example
-%%dv
-list from "books"
-%%
-- The hobbit
-- Lord of the rings
-
----
-# Query Types Examples
-
-> Next case works for formatters that adds spaces between elements
-
-## Table Example
-%%dv list from "books" %%
-
-| Author       | Title             |
-| ------------ | ----------------- |
-| J.R. Tolkien | The hobbit        |
-| J.R. Tolkien | Lord of the rings |
-
-## List Example
-%%dv list from "books" %%
-
-- The hobbit
-  - The hobbit Screenplay
-- Lord of the rings
-    - The two towers
-
----
-# Complex Examples
-
-## Spaced Example
-%%dv list from "books" %%
-
-<!--dv-start KEEP THIS COMMENT -->
-
-### List of books
-
-- The hobbit
-- Lord of the rings
-
-- Thrid element
-- Fourth element
-
-<!--dv-end KEEP THIS COMMENT -->
-`.split('\n')
+const goodExample = resolve(import.meta.dirname, './GoodExamples.md')
+export const GOOD_EXAMPLE = [
+    '', // insert an empty line to, make the lineIndex match with editor>shownumbers
+    ...readFileSync(goodExample).toString().split('\n'),
+]
 
 // prettier-ignore
 export const GOOD_QUERIES: QuerySpec[] = [
     [GOOD_EXAMPLE,    'Line Query', { query: 'list from "books"', queryStart: 4, queryEnd: 4, resultEnd: 6 }],
     [GOOD_EXAMPLE,   'Block Query', { query: 'list from "books"', queryStart: 9, queryEnd: 11, resultEnd: 13 }],
-    [GOOD_EXAMPLE,  'Table Result', { query: 'list from "books"', queryStart: 21, queryEnd: 21, resultEnd: 26 }],
-    [GOOD_EXAMPLE,   'List Result', { query: 'list from "books"', queryStart: 29, queryEnd: 29, resultEnd: 34 }],
-    [GOOD_EXAMPLE, 'Spaced Result', { query: 'list from "books"', queryStart: 40, queryEnd: 40, resultEnd: 52 }],
+    [GOOD_EXAMPLE,   'List Result', { query: 'list from "books"', queryStart: 22, queryEnd: 22, resultEnd: 27 }],
+    [GOOD_EXAMPLE,   'Task Result', { query: 'task from "books"', queryStart: 31, queryEnd: 31, resultEnd: 36 }],
+    [GOOD_EXAMPLE,  'Table Result', { query: 'table from "books"', queryStart: 40, queryEnd: 40, resultEnd: 45 }],
+    [GOOD_EXAMPLE, 'Spaced Fences', { query: 'list from "books"', queryStart: 52, queryEnd: 52, resultEnd: 64 }],
+    [GOOD_EXAMPLE, 'Forced Fences', { query: 'list from "books"', queryStart: 68, queryEnd: 68, resultEnd: 74 }],
+    // problematic cases
+    [GOOD_EXAMPLE, 'Unsupported Result', { query: 'list from "books"', queryStart: 81, queryEnd: 81, resultEnd: -1 }],
+    [GOOD_EXAMPLE, 'Mistaken user list', { query: 'list from "books"', queryStart: 89, queryEnd: 89, resultEnd: 92 }],
+    [GOOD_EXAMPLE,   'Spaced user list', { query: 'list from "books"', queryStart: 94, queryEnd: 94, resultEnd: -1 }],
+    [GOOD_EXAMPLE, 'Protected user list', { query: 'list from "books"', queryStart: 102, queryEnd: 102, resultEnd: -1 }],
 ]
 
+//
 //
 //
 // SPACED

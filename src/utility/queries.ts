@@ -132,11 +132,14 @@ export function findQueryEnd(
     lastLine: number,
     getLine: LineProvider,
 ): number {
+    // bad query indexing
+    if (queryEnd > lastLine) return -1
+
     let lineIndex = queryEnd
     let line = getLine(++lineIndex)
 
-    // formatting spaces
-    while (/^\s*$/.test(line)) {
+    // formatting blackline
+    if (/^\s*$/.test(line)) {
         if (lastLine <= lineIndex) return -1
         line = getLine(++lineIndex)
     }
@@ -154,15 +157,19 @@ export function findQueryEnd(
     }
 
     // otherwise, find the next element change
-    // TODO: test behavior of TASK and CALENDAR types
+    // TODO: test of CALENDAR types
     if (line.startsWith('|')) {
+        // TABLEs start with '|'
         for (++lineIndex; lineIndex < lastLine; lineIndex++) {
             if (!getLine(lineIndex).startsWith('|')) return lineIndex - 1
         }
+        return lineIndex
     } else if (/^ *-/.test(line)) {
+        // LISTs and TASKs start with '-' but can have spaces as prefix
         for (++lineIndex; lineIndex < lastLine; lineIndex++) {
             if (!/^ *-/.test(getLine(lineIndex))) return lineIndex - 1
         }
+        return lineIndex
     }
 
     return -1

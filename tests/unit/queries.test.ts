@@ -38,7 +38,10 @@ describe('Testing Query functions', () => {
 
     test('findAllQueries', () => {
         const mockFn = vi.fn((lines: string[]) =>
-            findAllQueries(state, lines.length, (n) => lines[n]),
+            findAllQueries(state, lines.length, (n) => lines[n]).map(
+                // ignore dynamic matcher
+                ({ matcher: _, ...query }) => query,
+            ),
         )
 
         const goodQueries = GOOD_QUERIES.map(([_, __, query]) => query)

@@ -1,4 +1,4 @@
-import { describe, expect, test } from 'vitest'
+import { assert, describe, expect, test } from 'vitest'
 import { DEFAULT_SETTINGS as SETTINGS } from '@/settings'
 import { prepareState } from '@/utility/state'
 
@@ -52,18 +52,23 @@ describe('Testing state matchers', () => {
         expect.soft(matcher('<!--dv KEEP THIS COMMENT -->')).toBe(false)
     })
 
-    test('getStart', () => {
-        const items = state.matchers.map((matcher) => matcher.getStart())
+    test('.fenceResult', () => {
+        const { fenceResult } =
+            state.matchers.find((m) => m.testHeader('%%dv')) ?? {}
+        assert(fenceResult !== undefined, 'matcher should not be undefined')
 
-        expect.soft(items).toContain('<!--dataview-start KEEP THIS COMMENT -->')
-        expect.soft(items).toContain('<!--dv-start KEEP THIS COMMENT -->')
-    })
+        const start = '<!--dv-start KEEP THIS COMMENT -->\n'
+        const end = '\n<!--dv-end KEEP THIS COMMENT -->\n'
 
-    test('getEnd', () => {
-        const items = state.matchers.map((matcher) => matcher.getEnd())
+        const basic = '- first line\n- second line'
+        expect.soft(fenceResult(basic)).toBe(`${basic}\n`)
+        expect.soft(fenceResult(basic, false)).toBe(`${basic}\n`)
+        expect.soft(fenceResult(basic, true)).toBe(`${start}${basic}${end}`)
 
-        expect.soft(items).toContain('<!--dataview-end KEEP THIS COMMENT -->')
-        expect.soft(items).toContain('<!--dv-end KEEP THIS COMMENT -->')
+        const spaced = '## Section\n\nParagraph of content\n\n> Footer'
+        expect.soft(fenceResult(spaced)).toBe(`${start}${spaced}${end}`)
+        expect.soft(fenceResult(spaced, false)).toBe(`${start}${spaced}${end}`)
+        expect.soft(fenceResult(spaced, true)).toBe(`${start}${spaced}${end}`)
     })
 })
 
