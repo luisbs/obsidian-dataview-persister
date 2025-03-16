@@ -7,6 +7,7 @@ export interface CommentQuery {
     queryStart: number
     queryEnd: number
     resultEnd: number
+    matcher: CommentMatcher
 }
 
 /** Iterate lines to find if the source has any comment query */
@@ -97,6 +98,7 @@ export function findQuery(
             queryEnd: queryStart,
             queryStart,
             resultEnd: findQueryEnd(matcher, queryStart, lastLine, getLine),
+            matcher,
         }
     }
 
@@ -112,6 +114,7 @@ export function findQuery(
                 queryEnd: lineIndex,
                 queryStart,
                 resultEnd: findQueryEnd(matcher, lineIndex, lastLine, getLine),
+                matcher,
             }
         }
 

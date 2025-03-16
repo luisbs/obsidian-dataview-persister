@@ -1,5 +1,5 @@
 # Example of persisted query
 
-%%dataview
+%%dv
 list from "recipes"
 %%
