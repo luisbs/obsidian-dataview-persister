@@ -1,7 +1,7 @@
 import {
     App,
-    type Editor,
     type EditorPosition,
+    MarkdownView,
     Notice,
     Plugin,
     type PluginManifest,
@@ -16,6 +16,12 @@ import {
     hasQueries,
     identifyQuery,
 } from '@/utility/queries'
+
+type LineReplacer = (
+    replacement: string,
+    from: EditorPosition,
+    to: EditorPosition,
+) => void
 
 export default class DataviewPersisterPlugin extends Plugin {
     #log = Logger.consoleLogger(DataviewPersisterPlugin.name)
@@ -48,6 +54,7 @@ export default class DataviewPersisterPlugin extends Plugin {
         group.info('Prepared State')
 
         this.#registerCommands()
+        this.#registerEventListener()
         // this.registerMarkdownPostProcessor((element, context) => {
         //     const info = context.getSectionInfo(element)
         //     if (!info) return
@@ -78,15 +85,18 @@ export default class DataviewPersisterPlugin extends Plugin {
                 if (!query) return false
                 if (checking) return true
 
+                const replacer: LineReplacer = (replacement, from, to) =>
+                    editor.replaceRange(replacement, from, to)
+
                 // persist found query
                 const group = this.#log.group(`Command persist-cursor`)
-                void this.#persist([query], editor, group).then((persisted) => {
+                void this.#persist([query], replacer, group).then((result) => {
                     // prettier-ignore
-                    if (persisted) {
-                        group.flush(`Persisted Dataview query '${view.file?.basename}:${query.queryStart + 1}'`)
+                    if (result) {
+                        group.flush(`Persisted Dataview query '${view.file?.basename}:${query.queryFrom + 1}'`)
                         new Notice('Persisted Dataview query under cursor')
                     } else {
-                        group.flush(`Problems persisting the Dataview query '${view.file?.basename}:${query.queryStart + 1}'`)
+                        group.flush(`Problems persisting the Dataview query '${view.file?.basename}:${query.queryFrom + 1}'`)
                         new Notice('Problems persisting the Dataview query under cursor')
                     }
                 })
@@ -108,17 +118,20 @@ export default class DataviewPersisterPlugin extends Plugin {
                 const queries = findAllQueries(this.#state, lastLine, getLine)
                 if (queries.length < 1) return false
 
+                const replacer: LineReplacer = (replacement, from, to) =>
+                    editor.replaceRange(replacement, from, to)
+
                 // persist found queries
                 // persisting on reverse avoids content shifting
                 // and allows to use the previously found lineIndexes
                 const group = this.#log.group(`persist-file-command`)
-                void this.#persist(queries.reverse(), editor, group).then(
-                    (persisted) => {
+                void this.#persist(queries.reverse(), replacer, group).then(
+                    (result) => {
                         // prettier-ignore
-                        if (persisted === queries.length) {
+                        if (result === queries.length) {
                         group.flush(`Persisted all Dataview queries on '${view.file?.basename}'`)
                         new Notice('Persisted all Dataview queries on editor')
-                    } else if (persisted > 0) {
+                    } else if (result > 0) {
                         group.flush(`Problems persisting some Dataview queries on '${view.file?.basename}'`)
                         new Notice('Problems persisting some Dataview queries on editor')
                     } else {
@@ -132,31 +145,57 @@ export default class DataviewPersisterPlugin extends Plugin {
         })
     }
 
+    #registerEventListener(): void {
+        this.registerEvent(
+            this.app.workspace.on('active-leaf-change', (leaf) => {
+                if (!(leaf?.view instanceof MarkdownView)) return
+
+                // TODO only runs when the file is opened in as an editor
+                console.log({
+                    view: leaf.view,
+                    editor: leaf.view.editor,
+                })
+                // doesn't work
+                // leaf.view.editor.replaceRange(
+                //     'hola\n\n\n\n\n\n\n\n',
+                //     { line: 0, ch: 0 },
+                //     { line: 0, ch: 0 },
+                //     'dataview-persister:persist-all',
+                // )
+                // return
+
+                // @ts-expect-error not documentated API
+                // eslint-disable-next-line
+                this.app.commands.executeCommandById(
+                    'dataview-persister:persist-all',
+                )
+            }),
+        )
+    }
+
     /** @returns {number} the quantity of queries that were persisted */
     async #persist(
         queries: CommentQuery[],
-        editor: Editor,
+        replace: LineReplacer,
         log: Logger,
     ): Promise<number> {
         if (!isPluginEnabled(this.app)) return 0
         const dv = getAPI(this.app)
         if (!dv) return 0
 
-        const lastLine = editor.lastLine()
-
         let persisted = 0
         log.debug('Persisting queries', queries)
         for (const query of queries) {
-            const [start, end] = this.#prepareReplacePositions(query, lastLine)
+            const { resultFrom, resultTo } = query
 
             log.debug(`Executing query <${query.query}>`)
             const result = await dv.queryMarkdown(query.query)
-            const replaced = result.successful
+            const replacement = result.successful
                 ? query.matcher.fenceResult(result.value)
                 : query.matcher.fenceResult(result.error, true)
 
             log.info(`Persisting result of <${query.query}>`)
-            editor.replaceRange(replaced, start, end)
+            replace(replacement, resultFrom, resultTo)
 
             // [x] 1. Execute query against Dataview
             // [x] 2. Transform query result into Markdown
@@ -169,27 +208,5 @@ export default class DataviewPersisterPlugin extends Plugin {
         }
 
         return persisted
-    }
-
-    #prepareReplacePositions(
-        { queryEnd, resultEnd }: CommentQuery, //
-        lastLine: number,
-    ): [EditorPosition, EditorPosition] {
-        if (queryEnd === lastLine) {
-            return [
-                { line: queryEnd, ch: Infinity },
-                { line: queryEnd, ch: Infinity },
-            ]
-        }
-        if (resultEnd < 0) {
-            return [
-                { line: queryEnd, ch: Infinity },
-                { line: queryEnd + 1, ch: 0 },
-            ]
-        }
-        return [
-            { line: queryEnd, ch: Infinity },
-            { line: resultEnd + 1, ch: 0 },
-        ]
     }
 }

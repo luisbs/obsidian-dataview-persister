@@ -44,12 +44,12 @@ export function prepareState(
                     // so a starting linebreak should be added
                     if (content.endsWith('\n')) {
                         return shouldFence
-                            ? `\n${startFence}\n${content}${endFence}\n`
-                            : `\n${content}`
+                            ? `\n\n${startFence}\n${content}${endFence}\n`
+                            : `\n\n${content}`
                     }
                     return shouldFence
-                        ? `\n${startFence}\n${content}\n${endFence}\n`
-                        : `\n${content}`
+                        ? `\n\n${startFence}\n${content}\n${endFence}\n`
+                        : `\n\n${content}`
                 },
             })
         }
