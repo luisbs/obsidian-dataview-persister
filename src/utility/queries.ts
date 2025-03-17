@@ -1,12 +1,14 @@
 import type { CommentMatcher, DataviewPersisterState } from '@/utility/state'
+import { EditorPosition } from 'obsidian'
 
 type LineProvider = (line: number) => string
 
 export interface CommentQuery {
     query: string
-    queryStart: number
-    queryEnd: number
-    resultEnd: number
+    queryFrom: number
+    queryTo: number
+    resultFrom: EditorPosition
+    resultTo: EditorPosition
     matcher: CommentMatcher
 }
 
@@ -46,7 +48,7 @@ export function findAllQueries(
             if (!query) continue
 
             // move the index, after the already identified query
-            lineIndex = query.resultEnd > -1 ? query.resultEnd : query.queryEnd
+            lineIndex = query.resultTo.line
             queries.push(query)
         }
     }
@@ -74,103 +76,112 @@ export function identifyQuery(
             })
 
             // fails if header was found but comment is incomplete
-            // or if testline is not inside [queryStart, queryEnd]
-            if (query && query.queryEnd >= testLine) return query
+            // or if testline is not inside [queryFrom, queryTo]
+            if (query && query.queryTo >= testLine) return query
         }
     }
     return
 }
 
-/** Identity a comment query starting at `queryStart` */
+/** Identity a comment query starting at line `queryFrom` */
 export function findQuery(
     matcher: CommentMatcher,
-    queryStart: number,
+    queryFrom: number,
     lastLine: number,
     getLine: LineProvider,
 ): CommentQuery | undefined {
-    const queryHeader = getLine(queryStart)
+    const queryHeader = getLine(queryFrom)
     if (!matcher.testHeader(queryHeader)) return
 
     // single-line query
     if (matcher.testFooter(queryHeader)) {
         return {
-            query: matcher.removeHeader(matcher.removeFooter(queryHeader)),
-            queryEnd: queryStart,
-            queryStart,
-            resultEnd: findQueryEnd(matcher, queryStart, lastLine, getLine),
             matcher,
+            queryFrom,
+            queryTo: queryFrom,
+            query: matcher.removeHeader(matcher.removeFooter(queryHeader)),
+            ...findResult(matcher, queryFrom, lastLine, getLine),
         }
     }
 
     // multi-line query
     let query = matcher.removeHeader(queryHeader)
-    for (let lineIndex = queryStart + 1; lineIndex <= lastLine; lineIndex++) {
+    for (let lineIndex = queryFrom + 1; lineIndex <= lastLine; lineIndex++) {
         const line = getLine(lineIndex)
-        // a query end is found
-        if (matcher.testFooter(line)) {
-            query += `\n${matcher.removeFooter(line)}`
-            return {
-                query: query.trim(),
-                queryEnd: lineIndex,
-                queryStart,
-                resultEnd: findQueryEnd(matcher, lineIndex, lastLine, getLine),
-                matcher,
-            }
+        if (!matcher.testFooter(line)) {
+            query += `\n${line}`
+            continue
         }
 
-        query += `\n${line}`
+        // a query end is found
+        query += `\n${matcher.removeFooter(line)}`
+        return {
+            matcher,
+            queryFrom,
+            queryTo: lineIndex,
+            query: query.trim(),
+            ...findResult(matcher, lineIndex, lastLine, getLine),
+        }
     }
 
     // comment closer could not be found
     return
 }
 
-/** Identify a query result end after `queryEnd` */
-export function findQueryEnd(
+/** Identify a query result end after `queryTo` */
+export function findResult(
     matcher: CommentMatcher,
-    queryEnd: number,
+    queryTo: number,
     lastLine: number,
     getLine: LineProvider,
-): number {
-    // bad query indexing
-    if (queryEnd > lastLine) return -1
+): Pick<CommentQuery, 'resultFrom' | 'resultTo'> {
+    const resultFrom = { line: queryTo, ch: Infinity }
+    const result = (line: number, ch: number) =>
+        ({
+            resultFrom,
+            resultTo: { line, ch },
+        }) as Pick<CommentQuery, 'resultFrom' | 'resultTo'>
 
-    let lineIndex = queryEnd
-    let line = getLine(++lineIndex)
+    // bad query indexing
+    if (queryTo >= lastLine) return { resultFrom, resultTo: resultFrom }
+
+    let index = queryTo
+    let line = getLine(++index)
 
     // formatting blackline
-    if (/^\s*$/.test(line)) {
-        if (lastLine <= lineIndex) return -1
-        line = getLine(++lineIndex)
-    }
+    if (/^\s*$/.test(line)) line = getLine(++index)
+    if (!line || index >= lastLine) return result(queryTo + 1, 0)
 
     // if fences are been used, find the endFence
     if (matcher.testStart(line)) {
-        for (++lineIndex; lineIndex < lastLine; lineIndex++) {
-            const line = getLine(lineIndex)
-            if (matcher.testEnd(line)) return lineIndex
+        for (++index; index < lastLine; index++) {
+            const line = getLine(index)
+            if (matcher.testEnd(line)) return result(index + 1, 0)
             // a new queryComment was found
-            if (matcher.testHeader(line)) return -1
+            if (matcher.testHeader(line)) return result(queryTo + 1, 0)
         }
         // no endFence could be find
-        return -1
+        return result(queryTo + 1, 0)
     }
 
     // otherwise, find the next element change
     // TODO: test of CALENDAR types
     if (line.startsWith('|')) {
         // TABLEs start with '|'
-        for (++lineIndex; lineIndex < lastLine; lineIndex++) {
-            if (!getLine(lineIndex).startsWith('|')) return lineIndex - 1
+        for (++index; index < lastLine; index++) {
+            if (!getLine(index).startsWith('|')) return result(index, 0)
         }
-        return lineIndex
+        // EOF reached without element change
+        return result(index, Infinity)
     } else if (/^ *-/.test(line)) {
         // LISTs and TASKs start with '-' but can have spaces as prefix
-        for (++lineIndex; lineIndex < lastLine; lineIndex++) {
-            if (!/^ *-/.test(getLine(lineIndex))) return lineIndex - 1
+        for (++index; index < lastLine; index++) {
+            if (!/^ *-/.test(getLine(index))) return result(index, 0)
         }
-        return lineIndex
+        // EOF reached without element change
+        return result(index, Infinity)
     }
 
-    return -1
+    // no regular Dataview result was found
+    return result(queryTo + 1, 0)
 }

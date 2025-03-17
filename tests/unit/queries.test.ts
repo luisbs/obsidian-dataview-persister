@@ -5,7 +5,7 @@ import {
     identifyQuery,
     findAllQueries,
     findQuery,
-    findQueryEnd,
+    findResult,
     hasQueries,
 } from '@/utility/queries'
 import {
@@ -26,7 +26,7 @@ describe('Testing Query functions', () => {
 
     test('hasQueries', () => {
         const mockFn = vi.fn((lines: string[]) =>
-            hasQueries(state, lines.length, (n) => lines[n]),
+            hasQueries(state, lines.length - 1, (n) => lines[n]),
         )
 
         expect.soft(mockFn(GOOD_EXAMPLE)).toBe(true)
@@ -38,7 +38,7 @@ describe('Testing Query functions', () => {
 
     test('findAllQueries', () => {
         const mockFn = vi.fn((lines: string[]) =>
-            findAllQueries(state, lines.length, (n) => lines[n]).map(
+            findAllQueries(state, lines.length - 1, (n) => lines[n]).map(
                 // ignore dynamic matcher
                 ({ matcher: _, ...query }) => query,
             ),
@@ -56,16 +56,17 @@ describe('Testing Query functions', () => {
 
     test('identifyQuery', () => {
         const mockFn = vi.fn((lines: string[], testLine: number) =>
-            identifyQuery(state, testLine, lines.length, (n) => lines[n]),
+            identifyQuery(state, testLine, lines.length - 1, (n) => lines[n]),
         )
 
         for (const [lines, name, q] of ALL_QUERIES) {
-            const { queryStart: h, queryEnd: f, resultEnd: e } = q
-            const b = Math.floor(Math.random() * (f - h + 1)) + h
+            const { queryFrom: f, queryTo: t } = q
+            const e = q.queryTo + 1
+            const b = Math.floor(Math.random() * (t - f + 1)) + f
 
             // testLine inside comment query
-            expect.soft(mockFn(lines, h), `[header] ${name}`).toMatchObject(q)
-            expect.soft(mockFn(lines, f), `[footer] ${name}`).toMatchObject(q)
+            expect.soft(mockFn(lines, f), `[header] ${name}`).toMatchObject(q)
+            expect.soft(mockFn(lines, t), `[footer] ${name}`).toMatchObject(q)
             expect.soft(mockFn(lines, b), `[between] ${name}`).toMatchObject(q)
 
             // testLine outside comment query
@@ -74,22 +75,23 @@ describe('Testing Query functions', () => {
     })
 
     test('findQuery', () => {
-        const mockFn = vi.fn((lines: string[], queryHeader: number) =>
-            findQuery(matcher, queryHeader, lines.length, (n) => lines[n]),
+        const mockFn = vi.fn((lines: string[], queryFrom: number) =>
+            findQuery(matcher, queryFrom, lines.length - 1, (n) => lines[n]),
         )
 
         for (const [lines, name, q] of ALL_QUERIES) {
-            expect.soft(mockFn(lines, q.queryStart), name).toMatchObject(q)
+            expect.soft(mockFn(lines, q.queryFrom), name).toMatchObject(q)
         }
     })
 
-    test('findQueryEnd', () => {
-        const mockFn = vi.fn((lines: string[], queryFooter: number) =>
-            findQueryEnd(matcher, queryFooter, lines.length, (n) => lines[n]),
+    test('findResult', () => {
+        const mockFn = vi.fn((lines: string[], queryTo: number) =>
+            findResult(matcher, queryTo, lines.length - 1, (n) => lines[n]),
         )
 
         for (const [lines, name, q] of ALL_QUERIES) {
-            expect.soft(mockFn(lines, q.queryEnd), name).toBe(q.resultEnd)
+            const range = { resultFrom: q.resultFrom, resultTo: q.resultTo }
+            expect.soft(mockFn(lines, q.queryTo), name).toMatchObject(range)
         }
     })
 })
