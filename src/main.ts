@@ -1,27 +1,21 @@
 import {
-    App,
-    type EditorPosition,
+    type App,
     MarkdownView,
     Notice,
     Plugin,
     type PluginManifest,
 } from 'obsidian'
-import { getAPI, isPluginEnabled } from 'obsidian-dataview'
+import { type DataviewApi, getAPI, isPluginEnabled } from 'obsidian-dataview'
 import { Logger, LogLevel } from '@luis.bs/obsidian-fnc'
 import { DEFAULT_SETTINGS, type DataviewPersisterSettings } from '@/settings'
 import { prepareState, type DataviewPersisterState } from '@/utility/state'
 import {
     CommentQuery,
-    findAllQueries,
+    findQuery,
     hasQueries,
     identifyQuery,
 } from '@/utility/queries'
-
-type LineReplacer = (
-    replacement: string,
-    from: EditorPosition,
-    to: EditorPosition,
-) => void
+import { type BaseEditor, FileEditor } from '@/utility/editors'
 
 export default class DataviewPersisterPlugin extends Plugin {
     #log = Logger.consoleLogger(DataviewPersisterPlugin.name)
@@ -53,27 +47,45 @@ export default class DataviewPersisterPlugin extends Plugin {
         this.#state = prepareState(this.#settings)
         group.info('Prepared State')
 
-        this.#registerCommands()
-        this.#registerEventListener()
-        // this.registerMarkdownPostProcessor((element, context) => {
-        //     const info = context.getSectionInfo(element)
-        //     if (!info) return
-
-        //     const lines = info.text.split('\n')
-        //     if (this.#isHeader(lines[info.lineStart])) {
-        //         const query = lines.slice(info.lineStart + 1, info.lineEnd)
-        //         this.#persistQueryResult(query.join('\n'))
-        //     }
-        // })
+        this.#registerTriggers()
+        group.info('Registered Triggers')
 
         group.flush('Loaded DataviewPersister')
     }
 
-    #registerCommands(): void {
+    #getDataview(): DataviewApi | undefined {
+        if (isPluginEnabled(this.app)) {
+            const dataview = getAPI(this.app)
+            if (dataview) return dataview
+        }
+
+        this.#log.warn(`Dataview is not enabled`)
+        new Notice('Dataview is not enabled')
+        return
+    }
+
+    async #persist(
+        query: CommentQuery,
+        editor: BaseEditor,
+        label: string,
+    ): Promise<void> {
+        const dataview = this.#getDataview()
+        if (!dataview) return
+
+        const group = this.#log.group(label)
+        await this.#persistQuery(query, dataview, editor, group)
+        group.flush(`Persisted query under cursor`)
+        new Notice('Persisted query under cursor')
+    }
+
+    #registerTriggers(): void {
         this.addCommand({
             id: 'persist-cursor',
             name: 'Persist Dataview query under the cursor',
-            editorCheckCallback: (checking, editor, view) => {
+            editorCheckCallback: (checking, editor, _view) => {
+                const dv = this.#getDataview()
+                if (!dv) return false
+
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
 
@@ -85,21 +97,7 @@ export default class DataviewPersisterPlugin extends Plugin {
                 if (!query) return false
                 if (checking) return true
 
-                const replacer: LineReplacer = (replacement, from, to) =>
-                    editor.replaceRange(replacement, from, to)
-
-                // persist found query
-                const group = this.#log.group(`Command persist-cursor`)
-                void this.#persist([query], replacer, group).then((result) => {
-                    // prettier-ignore
-                    if (result) {
-                        group.flush(`Persisted Dataview query '${view.file?.basename}:${query.queryFrom + 1}'`)
-                        new Notice('Persisted Dataview query under cursor')
-                    } else {
-                        group.flush(`Problems persisting the Dataview query '${view.file?.basename}:${query.queryFrom + 1}'`)
-                        new Notice('Problems persisting the Dataview query under cursor')
-                    }
-                })
+                void this.#persist(query, editor, 'persist-cursor-command')
                 return true
             },
         })
@@ -107,106 +105,87 @@ export default class DataviewPersisterPlugin extends Plugin {
         this.addCommand({
             id: 'persist-all',
             name: 'Persist all Dataview queries on current editor',
-            editorCheckCallback: (checking, editor, view) => {
+            editorCheckCallback: (checking, editor, _view) => {
+                const dv = this.#getDataview()
+                if (!dv) return false
+
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
 
                 // only check if the editor contains any query
                 if (checking) return hasQueries(this.#state, lastLine, getLine)
 
-                // search queries on current editor
-                const queries = findAllQueries(this.#state, lastLine, getLine)
-                if (queries.length < 1) return false
-
-                const replacer: LineReplacer = (replacement, from, to) =>
-                    editor.replaceRange(replacement, from, to)
-
-                // persist found queries
-                // persisting on reverse avoids content shifting
-                // and allows to use the previously found lineIndexes
-                const group = this.#log.group(`persist-file-command`)
-                void this.#persist(queries.reverse(), replacer, group).then(
-                    (result) => {
-                        // prettier-ignore
-                        if (result === queries.length) {
-                        group.flush(`Persisted all Dataview queries on '${view.file?.basename}'`)
-                        new Notice('Persisted all Dataview queries on editor')
-                    } else if (result > 0) {
-                        group.flush(`Problems persisting some Dataview queries on '${view.file?.basename}'`)
-                        new Notice('Problems persisting some Dataview queries on editor')
-                    } else {
-                        group.flush(`Problems persisting all Dataview queries on '${view.file?.basename}'`)
-                        new Notice('Problems persisting all Dataview queries on editor')
-                    }
-                    },
-                )
+                void this.#persistAll(editor, 'persist-file-command')
                 return true
             },
         })
-    }
 
-    #registerEventListener(): void {
         this.registerEvent(
-            this.app.workspace.on('active-leaf-change', (leaf) => {
+            this.app.workspace.on('active-leaf-change', async (leaf) => {
                 if (!(leaf?.view instanceof MarkdownView)) return
+                if (!leaf.view.file) return
 
-                // TODO only runs when the file is opened in as an editor
-                console.log({
-                    view: leaf.view,
-                    editor: leaf.view.editor,
-                })
-                // doesn't work
-                // leaf.view.editor.replaceRange(
-                //     'hola\n\n\n\n\n\n\n\n',
-                //     { line: 0, ch: 0 },
-                //     { line: 0, ch: 0 },
-                //     'dataview-persister:persist-all',
-                // )
-                // return
+                // read the current content
+                const content = await this.app.vault.read(leaf.view.file)
+                const editor = new FileEditor(content)
 
-                // @ts-expect-error not documentated API
-                // eslint-disable-next-line
-                this.app.commands.executeCommandById(
-                    'dataview-persister:persist-all',
-                )
+                // calculate data to be persisted
+                await this.#persistAll(editor, 'persist-on-change-event')
+
+                // write the content with the persisted data
+                await this.app.vault.modify(leaf.view.file, editor.getContent())
             }),
         )
     }
 
-    /** @returns {number} the quantity of queries that were persisted */
-    async #persist(
-        queries: CommentQuery[],
-        replace: LineReplacer,
-        log: Logger,
-    ): Promise<number> {
-        if (!isPluginEnabled(this.app)) return 0
-        const dv = getAPI(this.app)
-        if (!dv) return 0
+    async #persistAll(
+        editor: BaseEditor,
+        label: string,
+    ): Promise<true | number> {
+        const dataview = this.#getDataview()
+        if (!dataview) return 0
 
+        const group = this.#log.group(label)
         let persisted = 0
-        log.debug('Persisting queries', queries)
-        for (const query of queries) {
-            const { resultFrom, resultTo } = query
+        for (let index = 0; index <= editor.lastLine(); index++) {
+            for (const matcher of this.#state.matchers) {
+                const query = findQuery(
+                    matcher,
+                    index,
+                    editor.lastLine(),
+                    editor.getLine.bind(editor),
+                )
+                if (!query) continue
 
-            log.debug(`Executing query <${query.query}>`)
-            const result = await dv.queryMarkdown(query.query)
-            const replacement = result.successful
-                ? query.matcher.fenceResult(result.value)
-                : query.matcher.fenceResult(result.error, true)
+                // move the index, after the already identified query
+                index = query.resultTo.line
 
-            log.info(`Persisting result of <${query.query}>`)
-            replace(replacement, resultFrom, resultTo)
-
-            // [x] 1. Execute query against Dataview
-            // [x] 2. Transform query result into Markdown
-            // [x] 3. Persist Markdown into Note under the comment
-            // [x] 4. Remove previously persisted result in Note
-            // [x] extra 1. Add command to persist all in-file queries
-            // [ ] extra 2. Execute command on file-open event
-            // [-] extra 3. Remove MarkdownPostProcessor
-            persisted++
+                // persist each query when is found
+                await this.#persistQuery(query, dataview, editor, group)
+                persisted++
+            }
         }
 
+        if (persisted) {
+            group.flush(`Persisted queries on file`)
+            new Notice('Persisted queries on file')
+        }
         return persisted
+    }
+
+    async #persistQuery(
+        { matcher, query, resultFrom, resultTo }: CommentQuery,
+        dataview: DataviewApi,
+        editor: BaseEditor,
+        log: Logger,
+    ): Promise<void> {
+        log.debug(`Executing query <${query}>`)
+        const result = await dataview.queryMarkdown(query)
+        const replacement = result.successful
+            ? matcher.fenceResult(result.value)
+            : matcher.fenceResult(result.error, true)
+
+        log.info(`Persisting result of <${query}>`)
+        editor.replaceRange(replacement, resultFrom, resultTo)
     }
 }

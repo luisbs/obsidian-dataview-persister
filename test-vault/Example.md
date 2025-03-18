@@ -21,3 +21,5 @@ table cuisine, needsStove from "recipes"
 - [ ] Jelly
 - [ ] Bread
 - [ ] Butter
+
+%%da- calendar from "recipes" %%
