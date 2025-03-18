@@ -18,3 +18,9 @@ lerna-debug.log*
 # Obsidian artifacts
 test-vault/.obsidian/*
 !test-vault/.obsidian/community-plugins.json
+
+test-vault/.obsidian/plugins/*
+!test-vault/.obsidian/plugins/hot-reload/*
+test-vault/.obsidian/plugins/dataview-persister/*
+!test-vault/.obsidian/plugins/dataview-persister/.hotreload
+!test-vault/.obsidian/plugins/dataview-persister/data.json
