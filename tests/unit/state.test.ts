@@ -1,6 +1,6 @@
-import { assert, describe, expect, test } from 'vitest'
 import { DEFAULT_SETTINGS as SETTINGS } from '@/settings'
 import { prepareState } from '@/utility/state'
+import { assert, describe, expect, test } from 'vitest'
 
 const state = prepareState(SETTINGS)
 
@@ -57,13 +57,17 @@ describe('Testing state matchers', () => {
             state.matchers.find((m) => m.testHeader('%%dv')) ?? {}
         assert(fenceResult !== undefined, 'matcher should not be undefined')
 
-        const start = '\n<!--dv-start KEEP THIS COMMENT -->\n'
+        const start = '\n\n<!--dv-start KEEP THIS COMMENT -->\n'
         const end = '<!--dv-end KEEP THIS COMMENT -->\n'
+
+        expect.soft(fenceResult('')).toBe('\n')
+        expect.soft(fenceResult('', false)).toBe('\n')
+        expect.soft(fenceResult('', true)).toBe(`${start}${end}`)
 
         const dv = '- first line\n- second line\n'
         const nodv = '- first line\n- second line'
-        expect.soft(fenceResult(dv)).toBe(`\n${dv}`)
-        expect.soft(fenceResult(dv, false)).toBe(`\n${dv}`)
+        expect.soft(fenceResult(dv)).toBe(`\n\n${dv}`)
+        expect.soft(fenceResult(dv, false)).toBe(`\n\n${dv}`)
         expect.soft(fenceResult(dv, true)).toBe(`${start}${dv}${end}`)
         expect.soft(fenceResult(nodv, true)).toBe(`${start}${nodv}\n${end}`)
 

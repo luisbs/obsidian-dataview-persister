@@ -39,17 +39,19 @@ export function prepareState(
                 testStart: (t) => startFence === t,
                 testEnd: (t) => endFence === t,
                 fenceResult: (content, force = false) => {
-                    const shouldFence = force || content.includes('\n\n')
                     // the content is aimed to follow the commentEnd
-                    // so a starting linebreak should be added
-                    if (content.endsWith('\n')) {
-                        return shouldFence
-                            ? `\n\n${startFence}\n${content}${endFence}\n`
-                            : `\n\n${content}`
+                    // so a starting linebreak should always be added
+                    //
+                    // when the query yields nothing keep the empty string
+                    if (!content) {
+                        return force ? `\n\n${startFence}\n${endFence}\n` : '\n'
                     }
+
+                    const shouldFence = force || content.includes('\n\n')
+                    const postfix = content.endsWith('\n') ? '' : '\n'
                     return shouldFence
-                        ? `\n\n${startFence}\n${content}\n${endFence}\n`
-                        : `\n\n${content}`
+                        ? `\n\n${startFence}\n${content}${postfix}${endFence}\n`
+                        : `\n\n${content}${postfix}`
                 },
             })
         }
