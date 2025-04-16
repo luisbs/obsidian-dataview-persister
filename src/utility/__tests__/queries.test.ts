@@ -1,13 +1,13 @@
 import { assert, describe, expect, test, vi } from 'vitest'
-import { DEFAULT_SETTINGS as SETTINGS } from '@/settings'
-import { prepareState } from '@/utility/state'
+import { DEFAULT_SETTINGS as SETTINGS } from '../../settings'
 import {
-    identifyQuery,
     findAllQueries,
     findQuery,
     findResult,
     hasQueries,
-} from '@/utility/queries'
+    identifyQuery,
+} from '../queries'
+import { prepareState } from '../state'
 import {
     ALL_QUERIES,
     GOOD_EXAMPLE,

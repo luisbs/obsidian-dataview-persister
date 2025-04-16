@@ -1,4 +1,4 @@
-import type { LogLevel } from '@luis.bs/obsidian-fnc'
+import type { LogLevel } from '@luis.bs/obsidian-fnc/lib/logging/Logger'
 
 export interface DataviewPersisterSettings {
     /** Defines the minimun level to log while running. */

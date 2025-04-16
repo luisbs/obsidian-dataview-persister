@@ -1,6 +1,6 @@
-import { DEFAULT_SETTINGS as SETTINGS } from '@/settings'
-import { prepareState } from '@/utility/state'
 import { assert, describe, expect, test } from 'vitest'
+import { DEFAULT_SETTINGS as SETTINGS } from '../../settings'
+import { prepareState } from '../state'
 
 const state = prepareState(SETTINGS)
 

@@ -1,12 +1,3 @@
-import { type DataviewPersisterSettings, DEFAULT_SETTINGS } from '@/settings'
-import { type BaseEditor, FileEditor } from '@/utility/editors'
-import {
-    CommentQuery,
-    findQuery,
-    hasQueries,
-    identifyQuery,
-} from '@/utility/queries'
-import { type DataviewPersisterState, prepareState } from '@/utility/state'
 import { Logger, LogLevel } from '@luis.bs/obsidian-fnc'
 import {
     type App,
@@ -16,6 +7,15 @@ import {
     type PluginManifest,
 } from 'obsidian'
 import { type DataviewApi, getAPI, isPluginEnabled } from 'obsidian-dataview'
+import { type DataviewPersisterSettings, DEFAULT_SETTINGS } from './settings'
+import { type BaseEditor, FileEditor } from './utility/editors'
+import {
+    CommentQuery,
+    findQuery,
+    hasQueries,
+    identifyQuery,
+} from './utility/queries'
+import { type DataviewPersisterState, prepareState } from './utility/state'
 
 export default class DataviewPersisterPlugin extends Plugin {
     #log = Logger.consoleLogger(DataviewPersisterPlugin.name)
