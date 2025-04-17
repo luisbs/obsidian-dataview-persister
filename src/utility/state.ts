@@ -47,7 +47,13 @@ export function prepareState(
                         return force ? `\n\n${startFence}\n${endFence}\n` : '\n'
                     }
 
-                    const shouldFence = force || content.includes('\n\n')
+                    const shouldFence =
+                        force ||
+                        // if content has empty lines
+                        content.includes('\n\n') ||
+                        // if content doesn't is DQL result
+                        !/^[-|]/gi.test(content)
+
                     const postfix = content.endsWith('\n') ? '' : '\n'
                     return shouldFence
                         ? `\n\n${startFence}\n${content}${postfix}${endFence}\n`

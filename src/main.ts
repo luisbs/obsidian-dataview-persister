@@ -5,12 +5,13 @@ import {
     Notice,
     Plugin,
     type PluginManifest,
-    TFile,
+    type TFile,
 } from 'obsidian'
 import { type DataviewApi, getAPI, isPluginEnabled } from 'obsidian-dataview'
 import { type DataviewPersisterSettings, DEFAULT_SETTINGS } from './settings'
 import { type BaseEditor, FileEditor } from './utility/editors'
-import { CommentQuery, findQuery, identifyQuery } from './utility/queries'
+import { asyncEval } from './utility/eval'
+import { type CommentQuery, findQuery, identifyQuery } from './utility/queries'
 import { type DataviewPersisterState, prepareState } from './utility/state'
 
 export default class DataviewPersisterPlugin extends Plugin {
@@ -122,7 +123,6 @@ export default class DataviewPersisterPlugin extends Plugin {
         )
     }
 
-    /** Dataview availability should be tested before this method */
     async #persist(
         label: string,
         originFile: TFile,
@@ -133,12 +133,16 @@ export default class DataviewPersisterPlugin extends Plugin {
         if (!dv) return
 
         const group = this.#log.group(label)
-        await this.#persistQuery(dv, query, originFile, editor, group)
-        group.flush(`Persisted query under cursor`)
+        const result = await this.#query(dv, query, originFile, group)
+        if (!result) return
+
+        group.debug(`Persisting result <${result}>`)
+        editor.replaceRange(result, query.resultFrom, query.resultTo)
+
+        group.flush('Persisted query under cursor')
         new Notice('Persisted query under cursor')
     }
 
-    /** Dataview availability should be tested before this method */
     async #persistFile(label: string, originFile: TFile): Promise<void> {
         const dv = this.#getDataview()
         if (!dv) return
@@ -164,7 +168,12 @@ export default class DataviewPersisterPlugin extends Plugin {
                 index = query.resultTo.line
 
                 // persist each query when they are found
-                await this.#persistQuery(dv, query, originFile, editor, group)
+                const result = await this.#query(dv, query, originFile, group)
+                if (!result) continue
+
+                group.debug(`Persisting result <${result}>`)
+                editor.replaceRange(result, query.resultFrom, query.resultTo)
+
                 persistedCount++
             }
         }
@@ -174,24 +183,27 @@ export default class DataviewPersisterPlugin extends Plugin {
 
         // write the content with the persisted data
         await this.app.vault.modify(originFile, editor.getContent())
+
         group.flush(`Persisted queries on file`)
         new Notice('Persisted queries on file')
     }
 
-    async #persistQuery(
+    async #query(
         dataview: DataviewApi,
-        { matcher, query, resultFrom, resultTo }: CommentQuery,
-        ctxFile: TFile,
-        editor: BaseEditor,
+        { matcher, query }: CommentQuery,
+        originFile: TFile,
         log: Logger,
-    ): Promise<void> {
-        log.debug(`Executing query <${query}>`)
-        const result = await dataview.queryMarkdown(query, ctxFile.path)
-        const replacement = result.successful
-            ? matcher.fenceResult(result.value)
-            : matcher.fenceResult(result.error, true)
+    ): Promise<string | undefined> {
+        if (/^(TABLE|LIST|TASK|CALENDAR)/gi.test(query)) {
+            log.debug(`Executing query <${query}>`)
+            const result = await dataview.queryMarkdown(query, originFile.path)
+            return result.successful
+                ? matcher.fenceResult(result.value)
+                : matcher.fenceResult(result.error, true)
+        }
 
-        log.info(`Persisting result of <${query}>`)
-        editor.replaceRange(replacement, resultFrom, resultTo)
+        log.debug(`Executing dataviewjs <${query}>`)
+        const result = await asyncEval(query)
+        return result ? matcher.fenceResult(result) : undefined
     }
 }

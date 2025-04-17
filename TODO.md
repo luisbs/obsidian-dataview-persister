@@ -4,7 +4,8 @@
 
 - [ ] Add `SettingsTab`
 - [ ] Allow to disable persisting on file focus change.
-- [ ] Add support for executing `dataviewjs` queries.
+- [x] Added _limited_ support for executing `dataviewjs` queries.
+  - Should use `return` statement
 
 ### Fixes
 

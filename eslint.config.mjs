@@ -36,11 +36,12 @@ export default ts.config(
             ],
             '@typescript-eslint/no-unused-vars': [
                 'error',
-                {
-                    args: 'all',
-                    argsIgnorePattern: '^_',
-                    destructuredArrayIgnorePattern: '^_',
-                },
+                { args: 'all', argsIgnorePattern: '^_' },
+            ],
+            '@typescript-eslint/consistent-type-exports': 'error',
+            '@typescript-eslint/consistent-type-imports': [
+                'error',
+                { fixStyle: 'inline-type-imports' },
             ],
         },
     },

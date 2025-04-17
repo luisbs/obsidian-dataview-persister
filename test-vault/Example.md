@@ -24,6 +24,21 @@ table cuisine, needsStove from "recipes"
 
 %%da- calendar from "recipes" %%
 
+---
+
+## Dataviewjs example
+
+%%dv
+const tasks = dv.pages('"recipes"').file.tasks
+return dv.markdownTaskList(tasks)
+%%
+
+- [ ] Bread
+- [ ] Peanut Butter
+- [ ] Jelly
+- [ ] Bread
+- [ ] Butter
+
 ## Self reference example
 
 param1:: value1

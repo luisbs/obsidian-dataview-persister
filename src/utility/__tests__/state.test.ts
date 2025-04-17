@@ -71,6 +71,9 @@ describe('Testing state matchers', () => {
         expect.soft(fenceResult(dv, true)).toBe(`${start}${dv}${end}`)
         expect.soft(fenceResult(nodv, true)).toBe(`${start}${nodv}\n${end}`)
 
+        const weird = 'Not a DQL response'
+        expect.soft(fenceResult(weird, true)).toBe(`${start}${weird}\n${end}`)
+
         const spaced = '## Section\n\nParagraph of content\n\n> Footer\n'
         expect.soft(fenceResult(spaced)).toBe(`${start}${spaced}${end}`)
         expect.soft(fenceResult(spaced, false)).toBe(`${start}${spaced}${end}`)
