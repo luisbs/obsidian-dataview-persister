@@ -5,16 +5,12 @@ import {
     Notice,
     Plugin,
     type PluginManifest,
+    TFile,
 } from 'obsidian'
 import { type DataviewApi, getAPI, isPluginEnabled } from 'obsidian-dataview'
 import { type DataviewPersisterSettings, DEFAULT_SETTINGS } from './settings'
 import { type BaseEditor, FileEditor } from './utility/editors'
-import {
-    CommentQuery,
-    findQuery,
-    hasQueries,
-    identifyQuery,
-} from './utility/queries'
+import { CommentQuery, findQuery, identifyQuery } from './utility/queries'
 import { type DataviewPersisterState, prepareState } from './utility/state'
 
 export default class DataviewPersisterPlugin extends Plugin {
@@ -89,7 +85,7 @@ export default class DataviewPersisterPlugin extends Plugin {
 
                 void this.#persist(
                     'persist-cursor-command',
-                    view.file.path,
+                    view.file,
                     editor,
                     query,
                 )
@@ -98,45 +94,30 @@ export default class DataviewPersisterPlugin extends Plugin {
         })
 
         this.addCommand({
-            id: 'persist-all',
-            name: 'Persist all Dataview queries on current editor',
-            editorCheckCallback: (checking, editor, view) => {
-                if (!view.file || !this.#isReady()) return false
+            id: 'persist-file',
+            name: 'Persist all Dataview queries on the active file',
+            checkCallback: (checking) => {
+                console.log('checkCallback')
+                const originFile = this.app.workspace.getActiveFile()
+                if (!originFile || !this.#isReady()) return false
+                if (checking) return true
 
-                const lastLine = editor.lastLine()
-                const getLine = (n: number) => editor.getLine(n)
-
-                // only check if the editor contains any query
-                if (checking) return hasQueries(this.#state, lastLine, getLine)
-
-                void this.#persistAll(
-                    'persist-file-command',
-                    view.file.path,
-                    editor,
-                )
+                // defer file modification
+                void this.#persistFile('persist-file-command', originFile)
                 return true
             },
         })
 
         this.registerEvent(
-            this.app.workspace.on('active-leaf-change', async (leaf) => {
+            this.app.workspace.on('active-leaf-change', (leaf) => {
                 if (!(leaf?.view instanceof MarkdownView)) return
                 if (!leaf.view.file || !this.#isReady()) return
 
-                // read the current content
-                const content = await this.app.vault.read(leaf.view.file)
-                const editor = new FileEditor(content)
-
-                // calculate data to be persisted
-                const queries = await this.#persistAll(
+                // defer file modification
+                return this.#persistFile(
                     'persist-on-change-event',
-                    leaf.view.file.path,
-                    editor,
+                    leaf.view.file,
                 )
-
-                // write the content with the persisted data
-                if (queries < 1) return
-                await this.app.vault.modify(leaf.view.file, editor.getContent())
             }),
         )
     }
@@ -144,7 +125,7 @@ export default class DataviewPersisterPlugin extends Plugin {
     /** Dataview availability should be tested before this method */
     async #persist(
         label: string,
-        filepath: string,
+        originFile: TFile,
         editor: BaseEditor,
         query: CommentQuery,
     ): Promise<void> {
@@ -152,22 +133,23 @@ export default class DataviewPersisterPlugin extends Plugin {
         if (!dv) return
 
         const group = this.#log.group(label)
-        await this.#persistQuery(dv, query, filepath, editor, group)
+        await this.#persistQuery(dv, query, originFile, editor, group)
         group.flush(`Persisted query under cursor`)
         new Notice('Persisted query under cursor')
     }
 
     /** Dataview availability should be tested before this method */
-    async #persistAll(
-        label: string,
-        filepath: string,
-        editor: BaseEditor,
-    ): Promise<number> {
+    async #persistFile(label: string, originFile: TFile): Promise<void> {
         const dv = this.#getDataview()
-        if (!dv) return 0
+        if (!dv) return
 
+        // prepare note content
         const group = this.#log.group(label)
-        let persisted = 0
+        const content = await this.app.vault.read(originFile)
+        const editor = new FileEditor(content)
+
+        // calculate data to be persisted
+        let persistedCount = 0
         for (let index = 0; index <= editor.lastLine(); index++) {
             for (const matcher of this.#state.matchers) {
                 const query = findQuery(
@@ -181,28 +163,30 @@ export default class DataviewPersisterPlugin extends Plugin {
                 // move the index, after the already identified query
                 index = query.resultTo.line
 
-                // persist each query when is found
-                await this.#persistQuery(dv, query, filepath, editor, group)
-                persisted++
+                // persist each query when they are found
+                await this.#persistQuery(dv, query, originFile, editor, group)
+                persistedCount++
             }
         }
 
-        if (persisted) {
-            group.flush(`Persisted queries on file`)
-            new Notice('Persisted queries on file')
-        }
-        return persisted
+        // if no queries where found, avoid changing the note
+        if (persistedCount < 1) return
+
+        // write the content with the persisted data
+        await this.app.vault.modify(originFile, editor.getContent())
+        group.flush(`Persisted queries on file`)
+        new Notice('Persisted queries on file')
     }
 
     async #persistQuery(
         dataview: DataviewApi,
         { matcher, query, resultFrom, resultTo }: CommentQuery,
-        filepath: string,
+        ctxFile: TFile,
         editor: BaseEditor,
         log: Logger,
     ): Promise<void> {
         log.debug(`Executing query <${query}>`)
-        const result = await dataview.queryMarkdown(query, filepath)
+        const result = await dataview.queryMarkdown(query, ctxFile.path)
         const replacement = result.successful
             ? matcher.fenceResult(result.value)
             : matcher.fenceResult(result.error, true)
