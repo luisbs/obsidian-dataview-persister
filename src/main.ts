@@ -53,6 +53,9 @@ export default class DataviewPersisterPlugin extends Plugin {
         group.flush('Loaded DataviewPersister')
     }
 
+    #isDisabled(): boolean {
+        return !isPluginEnabled(this.app)
+    }
     #getDataview(): DataviewApi | undefined {
         if (isPluginEnabled(this.app)) {
             const dataview = getAPI(this.app)
@@ -64,27 +67,12 @@ export default class DataviewPersisterPlugin extends Plugin {
         return
     }
 
-    async #persist(
-        query: CommentQuery,
-        editor: BaseEditor,
-        label: string,
-    ): Promise<void> {
-        const dataview = this.#getDataview()
-        if (!dataview) return
-
-        const group = this.#log.group(label)
-        await this.#persistQuery(query, dataview, editor, group)
-        group.flush(`Persisted query under cursor`)
-        new Notice('Persisted query under cursor')
-    }
-
     #registerTriggers(): void {
         this.addCommand({
             id: 'persist-cursor',
             name: 'Persist Dataview query under the cursor',
-            editorCheckCallback: (checking, editor, _view) => {
-                const dv = this.#getDataview()
-                if (!dv) return false
+            editorCheckCallback: (checking, editor, view) => {
+                if (!view.file || this.#isDisabled()) return false
 
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
@@ -97,7 +85,12 @@ export default class DataviewPersisterPlugin extends Plugin {
                 if (!query) return false
                 if (checking) return true
 
-                void this.#persist(query, editor, 'persist-cursor-command')
+                void this.#persist(
+                    'persist-cursor-command',
+                    view.file.path,
+                    editor,
+                    query,
+                )
                 return true
             },
         })
@@ -105,9 +98,8 @@ export default class DataviewPersisterPlugin extends Plugin {
         this.addCommand({
             id: 'persist-all',
             name: 'Persist all Dataview queries on current editor',
-            editorCheckCallback: (checking, editor, _view) => {
-                const dv = this.#getDataview()
-                if (!dv) return false
+            editorCheckCallback: (checking, editor, view) => {
+                if (!view.file || this.#isDisabled()) return false
 
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
@@ -115,7 +107,11 @@ export default class DataviewPersisterPlugin extends Plugin {
                 // only check if the editor contains any query
                 if (checking) return hasQueries(this.#state, lastLine, getLine)
 
-                void this.#persistAll(editor, 'persist-file-command')
+                void this.#persistAll(
+                    'persist-file-command',
+                    view.file.path,
+                    editor,
+                )
                 return true
             },
         })
@@ -123,14 +119,18 @@ export default class DataviewPersisterPlugin extends Plugin {
         this.registerEvent(
             this.app.workspace.on('active-leaf-change', async (leaf) => {
                 if (!(leaf?.view instanceof MarkdownView)) return
-                if (!leaf.view.file) return
+                if (!leaf.view.file || this.#isDisabled()) return
 
                 // read the current content
                 const content = await this.app.vault.read(leaf.view.file)
                 const editor = new FileEditor(content)
 
                 // calculate data to be persisted
-                await this.#persistAll(editor, 'persist-on-change-event')
+                await this.#persistAll(
+                    'persist-on-change-event',
+                    leaf.view.file.path,
+                    editor,
+                )
 
                 // write the content with the persisted data
                 await this.app.vault.modify(leaf.view.file, editor.getContent())
@@ -138,12 +138,30 @@ export default class DataviewPersisterPlugin extends Plugin {
         )
     }
 
-    async #persistAll(
-        editor: BaseEditor,
+    /** Dataview availability should be tested before this method */
+    async #persist(
         label: string,
+        filepath: string,
+        editor: BaseEditor,
+        query: CommentQuery,
+    ): Promise<void> {
+        const dv = this.#getDataview()
+        if (!dv) return
+
+        const group = this.#log.group(label)
+        await this.#persistQuery(dv, query, filepath, editor, group)
+        group.flush(`Persisted query under cursor`)
+        new Notice('Persisted query under cursor')
+    }
+
+    /** Dataview availability should be tested before this method */
+    async #persistAll(
+        label: string,
+        filepath: string,
+        editor: BaseEditor,
     ): Promise<true | number> {
-        const dataview = this.#getDataview()
-        if (!dataview) return 0
+        const dv = this.#getDataview()
+        if (!dv) return 0
 
         const group = this.#log.group(label)
         let persisted = 0
@@ -161,7 +179,7 @@ export default class DataviewPersisterPlugin extends Plugin {
                 index = query.resultTo.line
 
                 // persist each query when is found
-                await this.#persistQuery(query, dataview, editor, group)
+                await this.#persistQuery(dv, query, filepath, editor, group)
                 persisted++
             }
         }
@@ -174,13 +192,14 @@ export default class DataviewPersisterPlugin extends Plugin {
     }
 
     async #persistQuery(
-        { matcher, query, resultFrom, resultTo }: CommentQuery,
         dataview: DataviewApi,
+        { matcher, query, resultFrom, resultTo }: CommentQuery,
+        filepath: string,
         editor: BaseEditor,
         log: Logger,
     ): Promise<void> {
         log.debug(`Executing query <${query}>`)
-        const result = await dataview.queryMarkdown(query)
+        const result = await dataview.queryMarkdown(query, filepath)
         const replacement = result.successful
             ? matcher.fenceResult(result.value)
             : matcher.fenceResult(result.error, true)

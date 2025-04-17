@@ -23,3 +23,11 @@ table cuisine, needsStove from "recipes"
 - [ ] Butter
 
 %%da- calendar from "recipes" %%
+
+## Self reference example
+
+param1:: value1
+
+%%dv LIST this.param1  FROM "Example" %%
+
+- [[Example.md|Example]]: value1
