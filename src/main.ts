@@ -53,8 +53,10 @@ export default class DataviewPersisterPlugin extends Plugin {
         group.flush('Loaded DataviewPersister')
     }
 
-    #isDisabled(): boolean {
-        return !isPluginEnabled(this.app)
+    /** Allow running queries only after Dataview has been initialized  */
+    #isReady(): boolean {
+        if (!isPluginEnabled(this.app)) return false
+        return getAPI(this.app)?.index.initialized ?? false
     }
     #getDataview(): DataviewApi | undefined {
         if (isPluginEnabled(this.app)) {
@@ -72,7 +74,7 @@ export default class DataviewPersisterPlugin extends Plugin {
             id: 'persist-cursor',
             name: 'Persist Dataview query under the cursor',
             editorCheckCallback: (checking, editor, view) => {
-                if (!view.file || this.#isDisabled()) return false
+                if (!view.file || !this.#isReady()) return false
 
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
@@ -99,7 +101,7 @@ export default class DataviewPersisterPlugin extends Plugin {
             id: 'persist-all',
             name: 'Persist all Dataview queries on current editor',
             editorCheckCallback: (checking, editor, view) => {
-                if (!view.file || this.#isDisabled()) return false
+                if (!view.file || !this.#isReady()) return false
 
                 const lastLine = editor.lastLine()
                 const getLine = (n: number) => editor.getLine(n)
@@ -119,20 +121,21 @@ export default class DataviewPersisterPlugin extends Plugin {
         this.registerEvent(
             this.app.workspace.on('active-leaf-change', async (leaf) => {
                 if (!(leaf?.view instanceof MarkdownView)) return
-                if (!leaf.view.file || this.#isDisabled()) return
+                if (!leaf.view.file || !this.#isReady()) return
 
                 // read the current content
                 const content = await this.app.vault.read(leaf.view.file)
                 const editor = new FileEditor(content)
 
                 // calculate data to be persisted
-                await this.#persistAll(
+                const queries = await this.#persistAll(
                     'persist-on-change-event',
                     leaf.view.file.path,
                     editor,
                 )
 
                 // write the content with the persisted data
+                if (queries < 1) return
                 await this.app.vault.modify(leaf.view.file, editor.getContent())
             }),
         )
@@ -159,7 +162,7 @@ export default class DataviewPersisterPlugin extends Plugin {
         label: string,
         filepath: string,
         editor: BaseEditor,
-    ): Promise<true | number> {
+    ): Promise<number> {
         const dv = this.#getDataview()
         if (!dv) return 0
 
