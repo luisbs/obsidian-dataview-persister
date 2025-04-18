@@ -1,6 +1,17 @@
-import type { DataviewPersisterSettings } from '@/settings'
+import type { LogLevelValue } from '@luis.bs/obsidian-fnc'
+import type { DataviewPersisterSettings } from './PluginSettings'
 
-export interface DataviewPersisterState {
+/**
+ * Keep most of the `AttachmentsCacheSettings`
+ * for the `AttachmentsCacheApi` to use only state.
+ */
+export type DataviewPersisterState = Omit<
+    DataviewPersisterSettings,
+    'plugin_level'
+> & {
+    /** Calculated the minimun level to log while running. */
+    plugin_level: LogLevelValue
+    /** Pre-calculated comment handlers. */
     matchers: CommentMatcher[]
 }
 
@@ -63,5 +74,17 @@ export function prepareState(
         }
     }
 
-    return { matchers }
+    const plugin_level = {
+        TRACE: 1,
+        DEBUG: 2,
+        INFO: 3,
+        WARN: 4,
+        ERROR: 5,
+    }[settings.plugin_level] as LogLevelValue
+
+    return {
+        ...settings,
+        plugin_level,
+        matchers,
+    }
 }

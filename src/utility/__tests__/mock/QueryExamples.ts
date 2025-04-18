@@ -1,4 +1,4 @@
-import type { CommentQuery } from '@/utility/queries'
+import type { CommentQuery } from '@/utility/CommentQueries'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 

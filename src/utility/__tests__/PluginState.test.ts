@@ -1,10 +1,10 @@
 import { assert, describe, expect, test } from 'vitest'
-import { DEFAULT_SETTINGS as SETTINGS } from '../../settings'
-import { prepareState } from '../state'
+import { DEFAULT_SETTINGS as SETTINGS } from '../PluginSettings'
+import { prepareState } from '../PluginState'
 
 const state = prepareState(SETTINGS)
 
-describe('Testing state matchers', () => {
+describe('Testing PluginState functions', () => {
     test('testHeader', () => {
         const matcher = (text: string) =>
             state.matchers.some((matcher) => matcher.testHeader(text))

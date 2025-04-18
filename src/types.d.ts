@@ -1,1 +1,1 @@
-export type { DataviewPersisterSettings } from '@/settings'
+export type { DataviewPersisterSettings } from '@/utility/PluginSettings'

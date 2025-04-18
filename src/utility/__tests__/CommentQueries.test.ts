@@ -1,13 +1,13 @@
 import { assert, describe, expect, test, vi } from 'vitest'
-import { DEFAULT_SETTINGS as SETTINGS } from '../../settings'
 import {
     findAllQueries,
     findQuery,
     findResult,
     hasQueries,
     identifyQuery,
-} from '../queries'
-import { prepareState } from '../state'
+} from '../CommentQueries'
+import { DEFAULT_SETTINGS as SETTINGS } from '../PluginSettings'
+import { prepareState } from '../PluginState'
 import {
     ALL_QUERIES,
     GOOD_EXAMPLE,
@@ -20,7 +20,7 @@ import {
 
 const state = prepareState(SETTINGS)
 
-describe('Testing Query functions', () => {
+describe('Testing CommentQueries functions', () => {
     const matcher = state.matchers.find((m) => m.testHeader('%%dv'))
     assert(matcher !== undefined, 'matcher should not be undefined')
 

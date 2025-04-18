@@ -1,5 +1,5 @@
-import type { CommentMatcher, DataviewPersisterState } from '@/utility/state'
 import type { EditorPosition } from 'obsidian'
+import type { CommentMatcher, DataviewPersisterState } from './PluginState'
 
 type LineProvider = (line: number) => string
 

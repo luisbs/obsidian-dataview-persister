@@ -17,3 +17,16 @@ export const DEFAULT_SETTINGS: DataviewPersisterSettings = {
     persist_on_leaf_change: true,
     comment_header: 'dataview,dv',
 }
+
+export function prepareSettings(settings: unknown): DataviewPersisterSettings {
+    if (!settings || typeof settings !== 'object') return DEFAULT_SETTINGS
+    const s = settings as Partial<DataviewPersisterSettings>
+
+    // prettier-ignore
+    return {
+        // ensure fallback values are present
+        plugin_level:           s.plugin_level           ?? DEFAULT_SETTINGS.plugin_level,
+        persist_on_leaf_change: s.persist_on_leaf_change ?? DEFAULT_SETTINGS.persist_on_leaf_change,
+        comment_header:         s.comment_header         ?? DEFAULT_SETTINGS.comment_header,
+    }
+}

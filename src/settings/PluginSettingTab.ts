@@ -1,5 +1,5 @@
 import type DataviewPersisterPlugin from '@/main'
-import type { DataviewPersisterSettings } from '@/settings'
+import type { DataviewPersisterSettings } from '@/utility/PluginSettings'
 import { PluginSettingTab as BaseSettingTab, Setting } from 'obsidian'
 import { I18n } from './i18n'
 

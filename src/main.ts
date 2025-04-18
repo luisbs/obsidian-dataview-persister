@@ -8,12 +8,22 @@ import {
     type TFile,
 } from 'obsidian'
 import { type DataviewApi, getAPI, isPluginEnabled } from 'obsidian-dataview'
-import { type DataviewPersisterSettings, DEFAULT_SETTINGS } from './settings'
 import { PluginSettingTab } from './settings/PluginSettingTab'
-import { type BaseEditor, FileEditor } from './utility/editors'
-import { asyncEval } from './utility/eval'
-import { type CommentQuery, findQuery, identifyQuery } from './utility/queries'
-import { type DataviewPersisterState, prepareState } from './utility/state'
+import {
+    type CommentQuery,
+    findQuery,
+    identifyQuery,
+} from './utility/CommentQueries'
+import { type BaseEditor, FileEditor } from './utility/ContentEditors'
+import { asyncEval } from './utility/PluginEval'
+import {
+    type DataviewPersisterSettings,
+    prepareSettings,
+} from './utility/PluginSettings'
+import {
+    type DataviewPersisterState,
+    prepareState,
+} from './utility/PluginState'
 
 export default class DataviewPersisterPlugin extends Plugin {
     log = Logger.consoleLogger(DataviewPersisterPlugin.name)
@@ -29,22 +39,16 @@ export default class DataviewPersisterPlugin extends Plugin {
         this.log.setFormat('[hh:mm:ss.ms] level:')
     }
 
-    // TODO: add SettingsTab
-    // TODO: on settings change saveSettings, reloadState, etc
-
     async onload(): Promise<void> {
         const group = this.log.group('Loading DataviewPersister')
-        const primitives = ((await this.loadData()) ??
-            {}) as Partial<DataviewPersisterSettings>
 
         // ensure a fallback value is present
-        this.settings = Object.assign({}, DEFAULT_SETTINGS, primitives)
-        group.info('Loaded Settings')
+        this.settings = prepareSettings(await this.loadData())
         group.debug('Loaded: ', this.settings)
 
         this.addSettingTab(new PluginSettingTab(this))
 
-        this.state = prepareState(this.settings)
+        this.#prepareState(group)
         this.#registerTriggers()
         group.flush('Loaded DataviewPersister')
     }
@@ -55,8 +59,14 @@ export default class DataviewPersisterPlugin extends Plugin {
         await this.saveData(this.settings)
         group.debug('Saved: ', this.settings)
 
-        // TODO: this.#prepareState(group)
+        this.#prepareState(group)
         group.flush('Saved DataviewPersister settings')
+    }
+
+    #prepareState(log: Logger): void {
+        log.info('Preparing DataviewPersister state')
+        this.state = prepareState(this.settings)
+        this.log.setLevel(this.state.plugin_level)
     }
 
     /** Allow running queries only after Dataview has been initialized  */
@@ -107,7 +117,6 @@ export default class DataviewPersisterPlugin extends Plugin {
             id: 'persist-file',
             name: 'Persist all Dataview queries on the active file',
             checkCallback: (checking) => {
-                console.log('checkCallback')
                 const originFile = this.app.workspace.getActiveFile()
                 if (!originFile || !this.#isReady()) return false
                 if (checking) return true
@@ -120,7 +129,7 @@ export default class DataviewPersisterPlugin extends Plugin {
 
         this.registerEvent(
             this.app.workspace.on('active-leaf-change', (leaf) => {
-                if (!this.settings.persist_on_leaf_change) return
+                if (!this.state.persist_on_leaf_change) return
                 if (!(leaf?.view instanceof MarkdownView)) return
                 if (!leaf.view.file || !this.#isReady()) return
 
