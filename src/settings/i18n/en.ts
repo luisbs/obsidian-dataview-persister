@@ -10,6 +10,10 @@ export const en: Translations = {
         ['docs', 'log-level'],
     ],
     //
+    onLeafChangeName: 'Persist when the active leaf changes?',
+    onLeafChangeDesc:
+        'Whether the comment queries should be persisted inmediatly when the active leaf changes.',
+    //
     commentHeaderName: 'Comment header',
     commentHeaderDesc: [
         'Comma-separated list of headers to identify a comment query. ',

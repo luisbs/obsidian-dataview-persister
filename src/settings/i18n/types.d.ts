@@ -16,4 +16,6 @@ export type TextTranslation =
 /** Translations that not require to be strings */
 export type FlexibleTranslation =
     // * General Section
-    `pluginLogLevel${Name_Desc}` | `commentHeader${Name_Desc}`
+    | `pluginLogLevel${Name_Desc}`
+    | `onLeafChange${Name_Desc}`
+    | `commentHeader${Name_Desc}`

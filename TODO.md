@@ -3,7 +3,7 @@
 ## Tasks
 
 - [x] Add `PluginSettingsTab`
-- [ ] Allow to disable persisting on file focus change.
+- [x] Allow to disable persisting on file focus change.
 - [x] Added _limited_ support for executing `dataviewjs` queries.
   - Should use `return` statement
 

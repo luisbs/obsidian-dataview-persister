@@ -45,6 +45,14 @@ export class PluginSettingTab extends BaseSettingTab {
             dropdown.onChange(this.#update.bind(this, 'plugin_level'))
         })
 
+        const onLeafChangeSetting = new Setting(this.containerEl)
+        onLeafChangeSetting.setName(i18n.translate('onLeafChangeName'))
+        onLeafChangeSetting.setDesc(i18n.translate('onLeafChangeDesc'))
+        onLeafChangeSetting.addToggle((toggle) => {
+            toggle.setValue(this.#plugin.settings.persist_on_leaf_change)
+            toggle.onChange(this.#update.bind(this, 'persist_on_leaf_change'))
+        })
+
         const commentHeaderSetting = new Setting(this.containerEl)
         commentHeaderSetting.setName(i18n.translate('commentHeaderName'))
         commentHeaderSetting.setDesc(i18n.translate('commentHeaderDesc'))

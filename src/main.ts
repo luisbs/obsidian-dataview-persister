@@ -120,6 +120,7 @@ export default class DataviewPersisterPlugin extends Plugin {
 
         this.registerEvent(
             this.app.workspace.on('active-leaf-change', (leaf) => {
+                if (!this.settings.persist_on_leaf_change) return
                 if (!(leaf?.view instanceof MarkdownView)) return
                 if (!leaf.view.file || !this.#isReady()) return
 
