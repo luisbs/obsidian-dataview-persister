@@ -4,7 +4,7 @@ import { packageBanner, packageStatic, rollupOptions } from './vite.share.mjs'
 
 // https://vitejs.dev/config/
 export default defineConfig({
-    plugins: [packageBanner(), packageStatic(['manifest.json'])],
+    plugins: [packageBanner(), packageStatic(['manifest.json', 'styles.css'])],
     resolve: { alias: { '@': resolve(__dirname, '../src') } },
     build: {
         emptyOutDir: false,

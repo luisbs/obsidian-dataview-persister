@@ -10,7 +10,6 @@ type true_false = boolean
 /** Translations that REQUIRE to be strings */
 export type TextTranslation =
     | 'learn'
-    | 'valueMayNotBeEmpty'
     // * General Section
     | 'commentHeaderHint'
 

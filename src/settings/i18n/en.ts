@@ -2,7 +2,6 @@ import { type Translations } from './types'
 
 export const en: Translations = {
     learn: 'Learn more',
-    valueMayNotBeEmpty: 'A value is required.',
     //
     // * General Section
     pluginLogLevelName: 'Log level',
@@ -13,10 +12,11 @@ export const en: Translations = {
     //
     commentHeaderName: 'Comment header',
     commentHeaderDesc: [
-        'Comma-separated list of headers to identify a comment query. Use it as: ',
-        ['code', { text: '%%dv <query-to-be-persisted> %%' }],
-        ['br'],
+        'Comma-separated list of headers to identify a comment query. ',
         ['docs', 'comment-header'],
+        ['br'],
+        'Example: ',
+        ['code', { text: '%%dataview <query-to-be-persisted> %%' }],
     ],
     commentHeaderHint: "like: 'dataview,dv'",
 }
