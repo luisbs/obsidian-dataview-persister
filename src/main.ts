@@ -9,45 +9,54 @@ import {
 } from 'obsidian'
 import { type DataviewApi, getAPI, isPluginEnabled } from 'obsidian-dataview'
 import { type DataviewPersisterSettings, DEFAULT_SETTINGS } from './settings'
+import { PluginSettingTab } from './settings/PluginSettingTab'
 import { type BaseEditor, FileEditor } from './utility/editors'
 import { asyncEval } from './utility/eval'
 import { type CommentQuery, findQuery, identifyQuery } from './utility/queries'
 import { type DataviewPersisterState, prepareState } from './utility/state'
 
 export default class DataviewPersisterPlugin extends Plugin {
-    #log = Logger.consoleLogger(DataviewPersisterPlugin.name)
-    #settings = {} as DataviewPersisterSettings
-    #state = {} as DataviewPersisterState
+    log = Logger.consoleLogger(DataviewPersisterPlugin.name)
+    settings = {} as DataviewPersisterSettings
+    state = {} as DataviewPersisterState
 
     constructor(app: App, manifest: PluginManifest) {
         super(app, manifest)
 
         // * always print the first initial onload()
         // * after that, the user-defined level is used
-        this.#log.setLevel(LogLevel.DEBUG)
-        this.#log.setFormat('[hh:mm:ss.ms] level:')
+        this.log.setLevel(LogLevel.DEBUG)
+        this.log.setFormat('[hh:mm:ss.ms] level:')
     }
 
     // TODO: add SettingsTab
     // TODO: on settings change saveSettings, reloadState, etc
 
     async onload(): Promise<void> {
-        const group = this.#log.group('Loading DataviewPersister')
+        const group = this.log.group('Loading DataviewPersister')
         const primitives = ((await this.loadData()) ??
             {}) as Partial<DataviewPersisterSettings>
 
         // ensure a fallback value is present
-        this.#settings = Object.assign({}, DEFAULT_SETTINGS, primitives)
+        this.settings = Object.assign({}, DEFAULT_SETTINGS, primitives)
         group.info('Loaded Settings')
-        group.debug('Loaded: ', this.#settings)
+        group.debug('Loaded: ', this.settings)
 
-        this.#state = prepareState(this.#settings)
-        group.info('Prepared State')
+        this.addSettingTab(new PluginSettingTab(this))
 
+        this.state = prepareState(this.settings)
         this.#registerTriggers()
-        group.info('Registered Triggers')
-
         group.flush('Loaded DataviewPersister')
+    }
+
+    async saveSettings(): Promise<void> {
+        const group = this.log.group('Saving DataviewPersister settings')
+
+        await this.saveData(this.settings)
+        group.debug('Saved: ', this.settings)
+
+        // TODO: this.#prepareState(group)
+        group.flush('Saved DataviewPersister settings')
     }
 
     /** Allow running queries only after Dataview has been initialized  */
@@ -61,7 +70,7 @@ export default class DataviewPersisterPlugin extends Plugin {
             if (dataview) return dataview
         }
 
-        this.#log.warn(`Dataview is not enabled`)
+        this.log.warn(`Dataview is not enabled`)
         new Notice('Dataview is not enabled')
         return
     }
@@ -78,7 +87,7 @@ export default class DataviewPersisterPlugin extends Plugin {
 
                 // identify query under cursor
                 const { line: l } = editor.getCursor()
-                const query = identifyQuery(this.#state, l, lastLine, getLine)
+                const query = identifyQuery(this.state, l, lastLine, getLine)
 
                 // cursor is not over a query comment
                 if (!query) return false
@@ -132,7 +141,7 @@ export default class DataviewPersisterPlugin extends Plugin {
         const dv = this.#getDataview()
         if (!dv) return
 
-        const group = this.#log.group(label)
+        const group = this.log.group(label)
         const result = await this.#query(dv, query, originFile, group)
         if (!result) return
 
@@ -148,14 +157,14 @@ export default class DataviewPersisterPlugin extends Plugin {
         if (!dv) return
 
         // prepare note content
-        const group = this.#log.group(label)
+        const group = this.log.group(label)
         const content = await this.app.vault.read(originFile)
         const editor = new FileEditor(content)
 
         // calculate data to be persisted
         let persistedCount = 0
         for (let index = 0; index <= editor.lastLine(); index++) {
-            for (const matcher of this.#state.matchers) {
+            for (const matcher of this.state.matchers) {
                 const query = findQuery(
                     matcher,
                     index,
