@@ -15,7 +15,6 @@ import {
     identifyQuery,
 } from './utility/CommentQueries'
 import { type BaseEditor, FileEditor } from './utility/ContentEditors'
-import { asyncEval } from './utility/PluginEval'
 import {
     type DataviewPersisterSettings,
     prepareSettings,
@@ -222,12 +221,8 @@ export default class DataviewPersisterPlugin extends Plugin {
         }
 
         log.debug(`Executing dataviewjs <${query}>`)
-        try {
-            const result = await asyncEval(query)
-            return result ? matcher.fenceResult(result) : undefined
-        } catch (err: unknown) {
-            log.warn('Problematic script', err)
-            return undefined
-        }
+        const container = createDiv()
+        await dataview.executeJs(query, container, this, originFile.path)
+        return matcher.fenceResult(container.getHTML())
     }
 }
