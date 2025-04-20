@@ -222,7 +222,12 @@ export default class DataviewPersisterPlugin extends Plugin {
         }
 
         log.debug(`Executing dataviewjs <${query}>`)
-        const result = await asyncEval(query)
-        return result ? matcher.fenceResult(result) : undefined
+        try {
+            const result = await asyncEval(query)
+            return result ? matcher.fenceResult(result) : undefined
+        } catch (err: unknown) {
+            log.warn('Problematic script', err)
+            return undefined
+        }
     }
 }
