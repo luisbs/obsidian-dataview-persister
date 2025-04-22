@@ -223,6 +223,10 @@ export default class DataviewPersisterPlugin extends Plugin {
         log.debug(`Executing dataviewjs <${query}>`)
         const container = createDiv()
         await dataview.executeJs(query, container, this, originFile.path)
+
+        // timeout to for async/await scripts to end execution
+        if (query.includes('await')) await sleep(500)
+
         return matcher.fenceResult(container.getHTML())
     }
 }
