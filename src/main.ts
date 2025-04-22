@@ -15,11 +15,13 @@ import {
     identifyQuery,
 } from './utility/CommentQueries'
 import { type BaseEditor, FileEditor } from './utility/ContentEditors'
+import { shortenLinks } from './utility/PluginEditions'
 import {
     type DataviewPersisterSettings,
     prepareSettings,
 } from './utility/PluginSettings'
 import {
+    type CommentMatcher,
     type DataviewPersisterState,
     prepareState,
 } from './utility/PluginState'
@@ -104,9 +106,9 @@ export default class DataviewPersisterPlugin extends Plugin {
 
                 void this.#persist(
                     'persist-cursor-command',
-                    view.file,
                     editor,
                     query,
+                    view.file.path,
                 )
                 return true
             },
@@ -143,54 +145,57 @@ export default class DataviewPersisterPlugin extends Plugin {
 
     async #persist(
         label: string,
-        originFile: TFile,
         editor: BaseEditor,
         query: CommentQuery,
+        queryFile: string,
     ): Promise<void> {
         const dv = this.#getDataview()
         if (!dv) return
 
         const group = this.log.group(label)
-        const result = await this.#query(dv, query, originFile, group)
+        const result = await this.#query(dv, queryFile, query.query, group)
         if (!result) return
 
         group.debug(`Persisting result <${result}>`)
-        editor.replaceRange(result, query.resultFrom, query.resultTo)
+        const prepared = this.#prepareResult(result, query.matcher, group)
+        editor.replaceRange(prepared, query.resultFrom, query.resultTo)
 
         group.flush('Persisted query under cursor')
         new Notice('Persisted query under cursor')
     }
 
-    async #persistFile(label: string, originFile: TFile): Promise<void> {
+    async #persistFile(label: string, queriesFile: TFile): Promise<void> {
         const dv = this.#getDataview()
         if (!dv) return
 
         // prepare note content
         const group = this.log.group(label)
-        const content = await this.app.vault.read(originFile)
+        const queryFile = queriesFile.path
+        const content = await this.app.vault.read(queriesFile)
         const editor = new FileEditor(content)
 
         // calculate data to be persisted
         let persistedCount = 0
         for (let index = 0; index <= editor.lastLine(); index++) {
             for (const matcher of this.state.matchers) {
-                const query = findQuery(
+                const q = findQuery(
                     matcher,
                     index,
                     editor.lastLine(),
                     editor.getLine.bind(editor),
                 )
-                if (!query) continue
+                if (!q) continue
 
                 // move the index, after the already identified query
-                index = query.resultTo.line
+                index = q.resultTo.line
 
                 // persist each query when they are found
-                const result = await this.#query(dv, query, originFile, group)
+                const result = await this.#query(dv, queryFile, q.query, group)
                 if (!result) continue
 
                 group.debug(`Persisting result <${result}>`)
-                editor.replaceRange(result, query.resultFrom, query.resultTo)
+                const prepared = this.#prepareResult(result, q.matcher, group)
+                editor.replaceRange(prepared, q.resultFrom, q.resultTo)
 
                 persistedCount++
             }
@@ -200,7 +205,7 @@ export default class DataviewPersisterPlugin extends Plugin {
         if (persistedCount < 1) return
 
         // write the content with the persisted data
-        await this.app.vault.modify(originFile, editor.getContent())
+        await this.app.vault.modify(queriesFile, editor.getContent())
 
         group.flush(`Persisted queries on file`)
         new Notice('Persisted queries on file')
@@ -208,25 +213,31 @@ export default class DataviewPersisterPlugin extends Plugin {
 
     async #query(
         dataview: DataviewApi,
-        { matcher, query }: CommentQuery,
-        originFile: TFile,
+        queryFilepath: string,
+        query: string,
         log: Logger,
     ): Promise<string | undefined> {
         if (/^(TABLE|LIST|TASK|CALENDAR)/gi.test(query)) {
             log.debug(`Executing query <${query}>`)
-            const result = await dataview.queryMarkdown(query, originFile.path)
-            return result.successful
-                ? matcher.fenceResult(result.value)
-                : matcher.fenceResult(result.error, true)
+            const result = await dataview.queryMarkdown(query, queryFilepath)
+            return result.successful ? result.value : result.error
         }
 
         log.debug(`Executing dataviewjs <${query}>`)
         const container = createDiv()
-        await dataview.executeJs(query, container, this, originFile.path)
+        await dataview.executeJs(query, container, this, queryFilepath)
 
         // timeout to for async/await scripts to end execution
         if (query.includes('await')) await sleep(500)
+        return container.getHTML()
+    }
 
-        return matcher.fenceResult(container.getHTML())
+    #prepareResult(result: string, matcher: CommentMatcher, log: Logger) {
+        if (this.state.shorten_result_links) {
+            log.debug('Shortening result links')
+            result = shortenLinks(result)
+        }
+
+        return matcher.fenceResult(result)
     }
 }

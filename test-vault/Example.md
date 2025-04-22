@@ -4,15 +4,15 @@
 table cuisine, needsStove from "recipes"
 %%
 
-| File                        | cuisine  | needsStove |
-| --------------------------- | -------- | ---------- |
-| [[recipes/pbj.md\|pbj]]     | American | false      |
-| [[recipes/toast.md\|toast]] | British  | true       |
+| File      | cuisine  | needsStove |
+| --------- | -------- | ---------- |
+| [[pbj]]   | American | false      |
+| [[toast]] | British  | true       |
 
 %%dv list from "recipes" %%
 
-- [[recipes/pbj.md|pbj]]
-- [[recipes/toast.md|toast]]
+- [[pbj]]
+- [[toast]]
 
 %%dv task from "recipes" %%
 
@@ -32,4 +32,4 @@ param1:: value1
 
 %%dv LIST this.param1  FROM "Example" %%
 
-- [[Example.md|Example]]: value1
+- [[Example]]: value1

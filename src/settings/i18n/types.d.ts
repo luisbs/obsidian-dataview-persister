@@ -18,4 +18,5 @@ export type FlexibleTranslation =
     // * General Section
     | `pluginLogLevel${Name_Desc}`
     | `onLeafChange${Name_Desc}`
+    | `shortenLinks${Name_Desc}`
     | `commentHeader${Name_Desc}`

@@ -5,6 +5,8 @@ export interface DataviewPersisterSettings {
     plugin_level: keyof typeof LogLevel
     /** Defines if the queries should be persisted when the active leaf changes. */
     persist_on_leaf_change: boolean
+    /** Whether the link on the query results should be shortened */
+    shorten_result_links: boolean
     /** User defined identifier for comment DQLs. */
     comment_header: string
 }
@@ -15,6 +17,7 @@ export const DEFAULT_SETTINGS: DataviewPersisterSettings = {
     plugin_level: 'WARN',
     //
     persist_on_leaf_change: true,
+    shorten_result_links: true,
     comment_header: 'dataview,dv',
 }
 
@@ -27,6 +30,7 @@ export function prepareSettings(settings: unknown): DataviewPersisterSettings {
         // ensure fallback values are present
         plugin_level:           s.plugin_level           ?? DEFAULT_SETTINGS.plugin_level,
         persist_on_leaf_change: s.persist_on_leaf_change ?? DEFAULT_SETTINGS.persist_on_leaf_change,
+        shorten_result_links:   s.shorten_result_links   ?? DEFAULT_SETTINGS.shorten_result_links,
         comment_header:         s.comment_header         ?? DEFAULT_SETTINGS.comment_header,
     }
 }

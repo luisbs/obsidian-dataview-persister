@@ -53,6 +53,14 @@ export class PluginSettingTab extends BaseSettingTab {
             toggle.onChange(this.#update.bind(this, 'persist_on_leaf_change'))
         })
 
+        const shortenLinksSetting = new Setting(this.containerEl)
+        shortenLinksSetting.setName(i18n.translate('shortenLinksName'))
+        shortenLinksSetting.setDesc(i18n.translate('shortenLinksDesc'))
+        shortenLinksSetting.addToggle((toggle) => {
+            toggle.setValue(this.#plugin.settings.shorten_result_links)
+            toggle.onChange(this.#update.bind(this, 'shorten_result_links'))
+        })
+
         const commentHeaderSetting = new Setting(this.containerEl)
         commentHeaderSetting.setName(i18n.translate('commentHeaderName'))
         commentHeaderSetting.setDesc(i18n.translate('commentHeaderDesc'))

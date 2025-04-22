@@ -14,6 +14,10 @@ export const en: Translations = {
     onLeafChangeDesc:
         'Whether the comment queries should be persisted inmediatly when the active leaf changes.',
     //
+    shortenLinksName: 'Shorten persisted links?',
+    shortenLinksDesc:
+        'Whether the vault-links on queries result should be shortened.',
+    //
     commentHeaderName: 'Comment header',
     commentHeaderDesc: [
         'Comma-separated list of headers to identify a comment query. ',
